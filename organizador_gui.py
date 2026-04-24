@@ -74,10 +74,10 @@ class FolderHandler(FileSystemEventHandler):
 class FileOrganizerApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Organizador de Arquivos")
-        self.root.geometry("1060x760")
-        self.root.minsize(960, 680)
-        self.root.configure(bg="#0f172a")
+        self.root.title("Sortify")
+        self.root.geometry("1180x820")
+        self.root.minsize(1024, 720)
+        self.root.configure(bg="#0b1220")
 
         self.config = core.load_config()
 
@@ -104,52 +104,66 @@ class FileOrganizerApp:
         s = ttk.Style()
         s.theme_use("clam")
 
-        bg_main = "#0f172a"
-        bg_card = "#1e293b"
-        fg_title = "#f8fafc"
-        fg_sub = "#94a3b8"
-        fg_body = "#cbd5e1"
-        accent = "#38bdf8"
+        bg_main = "#0b1220"
+        bg_card = "#111b2e"
+        bg_card_soft = "#17243d"
+        fg_title = "#f3f6ff"
+        fg_sub = "#9db0ce"
+        fg_body = "#c9d6ec"
+        accent = "#4f8cff"
+        purple = "#7c3aed"
+        green = "#10b981"
 
         s.configure("Main.TFrame", background=bg_main)
-        s.configure("Card.TFrame", background=bg_card, relief="flat")
+        s.configure("Card.TFrame", background=bg_card, relief="flat", borderwidth=0)
+        s.configure("SoftCard.TFrame", background=bg_card_soft, relief="flat", borderwidth=0)
 
         s.configure("Header.TLabel", background=bg_main, foreground=fg_title,
-                     font=("Segoe UI", 22, "bold"))
+                     font=("Segoe UI", 42, "bold"))
         s.configure("SubHeader.TLabel", background=bg_main, foreground=fg_sub,
-                     font=("Segoe UI", 10))
+                     font=("Segoe UI", 12))
         s.configure("CardTitle.TLabel", background=bg_card, foreground=fg_title,
-                     font=("Segoe UI", 13, "bold"))
+                     font=("Segoe UI", 14, "bold"))
         s.configure("CardText.TLabel", background=bg_card, foreground=fg_body,
-                     font=("Segoe UI", 10))
+                     font=("Segoe UI", 11))
         s.configure("Status.TLabel", background=bg_card, foreground=accent,
                      font=("Segoe UI", 12, "bold"))
         s.configure("CounterValue.TLabel", background=bg_card, foreground=fg_title,
-                     font=("Segoe UI", 20, "bold"))
+                     font=("Segoe UI", 24, "bold"))
         s.configure("CounterLabel.TLabel", background=bg_card, foreground=fg_sub,
-                     font=("Segoe UI", 9))
+                     font=("Segoe UI", 10))
+        s.configure("HeroTag.TLabel", background=bg_main, foreground=fg_sub,
+                    font=("Segoe UI", 20, "bold"))
+        s.configure("HeroGreen.TLabel", background=bg_main, foreground=green,
+                    font=("Segoe UI", 17, "bold"))
+        s.configure("HeroBlue.TLabel", background=bg_main, foreground=accent,
+                    font=("Segoe UI", 17, "bold"))
+        s.configure("HeroPurple.TLabel", background=bg_main, foreground=purple,
+                    font=("Segoe UI", 17, "bold"))
+        s.configure("HeroLight.TLabel", background=bg_main, foreground=fg_title,
+                    font=("Segoe UI", 17, "bold"))
 
         for name, bg_color, bg_active in [
             ("Primary.TButton",   "#2563eb", "#1d4ed8"),
             ("Success.TButton",   "#16a34a", "#15803d"),
             ("Danger.TButton",    "#dc2626", "#b91c1c"),
-            ("Secondary.TButton", "#334155", "#475569"),
+            ("Secondary.TButton", "#243554", "#304668"),
             ("Warning.TButton",   "#d97706", "#b45309"),
-            ("Info.TButton",      "#0891b2", "#0e7490"),
+            ("Info.TButton",      "#5b39d6", "#4f2ec4"),
         ]:
-            s.configure(name, font=("Segoe UI", 10, "bold"), padding=8,
+            s.configure(name, font=("Segoe UI", 10, "bold"), padding=9,
                         background=bg_color, foreground="#ffffff")
             s.map(name, background=[("active", bg_active)])
 
         s.configure("Horizontal.TProgressbar",
-                    background="#2563eb", troughcolor="#1e293b", thickness=8)
+                    background="#2563eb", troughcolor="#17243d", thickness=8)
 
     # ──────────────────────────────────────
     # CONSTRUÇÃO DA UI
     # ──────────────────────────────────────
     def _build_ui(self):
         # Container com scroll
-        canvas = tk.Canvas(self.root, bg="#0f172a", highlightthickness=0)
+        canvas = tk.Canvas(self.root, bg="#0b1220", highlightthickness=0)
         scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
         self.main = ttk.Frame(canvas, style="Main.TFrame", padding=24)
 
@@ -168,7 +182,7 @@ class FileOrganizerApp:
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
-        self._build_header()
+        self._build_hero()
         self._build_counters()
         self._build_actions_row1()
         self._build_actions_row2()
@@ -176,16 +190,34 @@ class FileOrganizerApp:
         self._build_progress()
         self._build_logs()
 
-    def _build_header(self):
+    def _build_hero(self):
         frame = ttk.Frame(self.main, style="Main.TFrame")
-        frame.pack(fill="x", pady=(0, 16))
+        frame.pack(fill="x", pady=(0, 18))
 
-        ttk.Label(frame, text="Organizador de Arquivos", style="Header.TLabel").pack(anchor="w")
-        ttk.Label(
-            frame,
-            text="Organize, monitore e gerencie seus arquivos automaticamente.",
-            style="SubHeader.TLabel",
-        ).pack(anchor="w", pady=(4, 0))
+        left = ttk.Frame(frame, style="Main.TFrame")
+        left.pack(side="left", fill="x", expand=True)
+
+        icon = tk.Canvas(left, width=190, height=140, bg="#0b1220", highlightthickness=0)
+        icon.pack(side="left", padx=(0, 14))
+        icon.create_rectangle(18, 38, 165, 116, outline="", fill="#1d4ed8")
+        icon.create_rectangle(24, 48, 171, 122, outline="", fill="#2563eb")
+        icon.create_rectangle(48, 46, 97, 66, outline="", fill="#3b82f6")
+        icon.create_line(86, 89, 118, 109, 160, 63, fill="#f8fafc", width=12, smooth=True)
+
+        title_box = ttk.Frame(left, style="Main.TFrame")
+        title_box.pack(side="left", fill="y")
+        ttk.Label(title_box, text="Sortify", style="Header.TLabel").pack(anchor="w")
+
+        subtitle = ttk.Frame(title_box, style="Main.TFrame")
+        subtitle.pack(anchor="w", pady=(2, 0))
+        ttk.Label(subtitle, text="Organiza.", style="HeroGreen.TLabel").pack(side="left")
+        ttk.Label(subtitle, text=" Simplifica.", style="HeroBlue.TLabel").pack(side="left")
+        ttk.Label(subtitle, text=" Liberta seu espaço.", style="HeroLight.TLabel").pack(side="left")
+
+        badge = ttk.Frame(frame, style="SoftCard.TFrame", padding=14)
+        badge.pack(side="right")
+        ttk.Label(badge, text="Identidade visual atualizada", style="SubHeader.TLabel").pack(anchor="e")
+        ttk.Label(badge, text="Visual moderno + escuro", style="HeroTag.TLabel").pack(anchor="e")
 
     def _build_counters(self):
         """Cards de contadores: movidos, ignorados, erros, status."""
@@ -285,8 +317,8 @@ class FileOrganizerApp:
         date_cb = tk.Checkbutton(
             bf, text="📅 Sub-pastas por data", variable=self.date_var,
             command=self._toggle_date_mode,
-            bg="#1e293b", fg="#cbd5e1", selectcolor="#334155",
-            activebackground="#1e293b", activeforeground="#cbd5e1",
+            bg="#111b2e", fg="#c9d6ec", selectcolor="#243554",
+            activebackground="#111b2e", activeforeground="#c9d6ec",
             font=("Segoe UI", 10), anchor="w",
         )
         date_cb.grid(row=0, column=4, padx=(6, 0), sticky="ew")
@@ -308,7 +340,7 @@ class FileOrganizerApp:
 
         self.folders_listbox = tk.Listbox(
             card, height=4, font=("Consolas", 10),
-            bg="#020617", fg="#e2e8f0", selectbackground="#2563eb",
+            bg="#0a1427", fg="#e2e8f0", selectbackground="#2563eb",
             relief="flat", borderwidth=0,
         )
         self.folders_listbox.pack(fill="x")
@@ -351,7 +383,7 @@ class FileOrganizerApp:
 
         self.log_text = scrolledtext.ScrolledText(
             card, wrap=tk.WORD, font=("Consolas", 10),
-            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
+            bg="#0a1427", fg="#e2e8f0", insertbackground="#e2e8f0",
             relief="flat", borderwidth=0, height=10,
         )
         self.log_text.pack(fill="both", expand=True)
