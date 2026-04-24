@@ -37,3 +37,4 @@ Edite o arquivo `config.json` para personalizar:
 pip install pyinstaller
 pyinstaller --onefile --windowed organizador_gui.py
 ```
+
