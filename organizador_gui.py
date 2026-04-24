@@ -166,13 +166,23 @@ class FileOrganizerApp:
         canvas = tk.Canvas(self.root, bg="#0b1220", highlightthickness=0)
         scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
         self.main = ttk.Frame(canvas, style="Main.TFrame", padding=24)
+        self.max_content_width = 1180
 
         self.main.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        canvas.create_window((0, 0), window=self.main, anchor="nw")
+        self.main_window = canvas.create_window((0, 0), window=self.main, anchor="n")
         canvas.configure(yscrollcommand=scrollbar.set)
+
+        def _resize_main_container(event):
+            """Mantém conteúdo centralizado e responsivo sem criar espaço lateral."""
+            available_width = max(event.width - 24, 720)
+            content_width = min(available_width, self.max_content_width)
+            canvas.itemconfigure(self.main_window, width=content_width)
+            canvas.coords(self.main_window, event.width / 2, 0)
+
+        canvas.bind("<Configure>", _resize_main_container)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
