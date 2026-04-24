@@ -1,636 +1,760 @@
-import hashlib
-import json
+"""
+organizador_gui.py — Interface gráfica completa do organizador de arquivos.
+
+Funcionalidades:
+  1.  Selecionar pastas manualmente
+  2.  Categorias editáveis via config.json
+  3.  Modo simulação (dry-run)
+  4.  Histórico de ações em arquivo de log
+  5.  Desfazer última organização
+  6.  Ignorar arquivos específicos
+  7.  Organizar por data
+  8.  Detecção de duplicados
+  9.  Barra de progresso
+  10. Contadores no dashboard
+  11. Minimizar para bandeja
+  12. Preparado para empacotamento (.exe)
+  13. Notificações do sistema
+  14. Monitorar várias pastas
+  15. Regras personalizadas
+"""
+
 import os
-import shutil
-import threading
+import sys
 import time
-from datetime import datetime
-from pathlib import Path
+import json
+import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
+from datetime import datetime
 
-from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+import core
+
+# Tenta importar pystray (opcional)
+try:
+    import pystray
+    from PIL import Image, ImageDraw
+    HAS_TRAY = True
+except ImportError:
+    HAS_TRAY = False
 
 
-APP_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = APP_DIR / "config.json"
-LOGS_DIR = APP_DIR / "logs"
-HISTORY_PATH = APP_DIR / "last_organization.json"
+# ==========================================
+# HANDLER DO WATCHDOG
+# ==========================================
+class FolderHandler(FileSystemEventHandler):
+    """Monitora uma pasta e organiza arquivos novos automaticamente."""
 
-DOWNLOADS_PATH = Path.home() / "Downloads"
-DESKTOP_PATH = Path.home() / "Desktop"
-DOCUMENTS_PATH = Path.home() / "Documents"
-
-DEFAULT_CONFIG = {
-    "categories": {
-        "Imagens": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"],
-        "PDFs": [".pdf"],
-        "Documentos": [".doc", ".docx", ".txt", ".odt", ".rtf"],
-        "Planilhas": [".xls", ".xlsx", ".csv"],
-        "Apresentacoes": [".ppt", ".pptx"],
-        "Compactados": [".zip", ".rar", ".7z", ".tar", ".gz"],
-        "Executaveis": [".exe", ".msi"],
-        "Videos": [".mp4", ".mkv", ".avi", ".mov", ".wmv"],
-        "Audios": [".mp3", ".wav", ".flac", ".aac"],
-        "Codigos": [".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".java", ".cpp"],
-    },
-    "ignored_extensions": [".lnk", ".ini", ".tmp", ".part", ".crdownload"],
-    "ignored_names": ["desktop.ini"],
-    "rules": [
-        {
-            "if_extension": ".pdf",
-            "name_contains": "nota",
-            "target": "Notas Fiscais",
-        },
-        {
-            "if_extension": ".jpg",
-            "name_contains": "print",
-            "target": "Screenshots",
-        },
-    ],
-    "duplicates_folder": "Duplicados",
-}
-
-
-def load_config():
-    if not CONFIG_PATH.exists():
-        CONFIG_PATH.write_text(json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
-        return DEFAULT_CONFIG
-
-    with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-        loaded = json.load(config_file)
-
-    config = DEFAULT_CONFIG.copy()
-    config.update(loaded)
-    if "categories" not in config:
-        config["categories"] = DEFAULT_CONFIG["categories"]
-    return config
-
-
-def ensure_folder_exists(base_path: Path, folder_name: str) -> Path:
-    destination_path = base_path / folder_name
-    destination_path.mkdir(parents=True, exist_ok=True)
-    return destination_path
-
-
-def generate_non_conflicting_name(destination_dir: Path, filename: str) -> str:
-    base_name, ext = os.path.splitext(filename)
-    candidate = filename
-    counter = 1
-
-    while (destination_dir / candidate).exists():
-        candidate = f"{base_name} ({counter}){ext}"
-        counter += 1
-
-    return candidate
-
-
-def compute_sha256(file_path: Path) -> str:
-    digest = hashlib.sha256()
-    with file_path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8192), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def month_folder_name(file_path: Path) -> str:
-    modified = datetime.fromtimestamp(file_path.stat().st_mtime)
-    month_name = modified.strftime("%m-%B")
-    return f"{modified.year}/{month_name}"
-
-
-def combined_folder_name(file_path: Path, category: str) -> str:
-    modified = datetime.fromtimestamp(file_path.stat().st_mtime)
-    return f"{category}/{modified.strftime('%Y-%m')}"
-
-
-class OrganizerEngine:
-    def __init__(self, config, logger, progress_callback, counters_callback):
+    def __init__(self, folder_path: str, config: dict, logger, notify: bool = True):
+        super().__init__()
+        self.folder_path = folder_path
         self.config = config
         self.logger = logger
-        self.progress_callback = progress_callback
-        self.counters_callback = counters_callback
-        self.operation_log = []
-
-    def _matches_rule(self, filename: str, extension: str):
-        rules = self.config.get("rules", [])
-        lower_name = filename.lower()
-        for rule in rules:
-            rule_ext = rule.get("if_extension", "").lower()
-            name_contains = rule.get("name_contains", "").lower()
-            if rule_ext and extension != rule_ext:
-                continue
-            if name_contains and name_contains not in lower_name:
-                continue
-            target = rule.get("target")
-            if target:
-                return target
-        return None
-
-    def _category_for_file(self, filename: str):
-        _, ext = os.path.splitext(filename.lower())
-
-        ruled_target = self._matches_rule(filename, ext)
-        if ruled_target:
-            return ruled_target
-
-        for folder_name, extensions in self.config["categories"].items():
-            if ext in [entry.lower() for entry in extensions]:
-                return folder_name
-
-        return "Outros"
-
-    def _is_ignored(self, filename: str):
-        lower_name = filename.lower()
-        _, extension = os.path.splitext(lower_name)
-        if lower_name in [entry.lower() for entry in self.config.get("ignored_names", [])]:
-            return True
-        if extension in [entry.lower() for entry in self.config.get("ignored_extensions", [])]:
-            return True
-        if lower_name.startswith("~"):
-            return True
-        return False
-
-    def _write_audit_log(self, message: str):
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        log_file = LOGS_DIR / f"organizador_{datetime.now().strftime('%Y-%m-%d')}.log"
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with log_file.open("a", encoding="utf-8") as output:
-            output.write(f"[{timestamp}] {message}\n")
-
-    def _target_for_mode(self, file_path: Path, category: str, mode: str):
-        if mode == "date":
-            return month_folder_name(file_path)
-        if mode == "combined":
-            return combined_folder_name(file_path, category)
-        return category
-
-    def _detect_duplicate(self, source_path: Path, duplicates_dir: Path):
-        source_hash = compute_sha256(source_path)
-        for candidate in duplicates_dir.glob("*"):
-            if not candidate.is_file():
-                continue
-            if candidate.suffix.lower() != source_path.suffix.lower():
-                continue
-            if compute_sha256(candidate) == source_hash:
-                return True
-        return False
-
-    def organize_folder(self, folder_path: Path, mode="extension", dry_run=False):
-        if not folder_path.exists():
-            self.logger(f"❌ Pasta não encontrada: {folder_path}")
-            return
-
-        files = [item for item in folder_path.iterdir() if item.is_file()]
-        total_files = len(files)
-        moved = 0
-        ignored = 0
-        errors = 0
-        self.operation_log = []
-
-        self.logger(f"📁 Organizando: {folder_path}")
-
-        duplicates_dir_name = self.config.get("duplicates_folder", "Duplicados")
-        duplicates_dir = ensure_folder_exists(folder_path, duplicates_dir_name)
-
-        for index, item_path in enumerate(files, start=1):
-            filename = item_path.name
-            self.progress_callback(index, total_files)
-
-            if self._is_ignored(filename):
-                ignored += 1
-                self.logger(f"⏭️ Ignorado: {filename}")
-                self._write_audit_log(f"IGNORED | file={filename} | reason=ignore-list")
-                continue
-
-            category = self._category_for_file(filename)
-            target_folder_name = self._target_for_mode(item_path, category, mode)
-            destination_dir = ensure_folder_exists(folder_path, target_folder_name)
-
-            destination_file_name = generate_non_conflicting_name(destination_dir, filename)
-            destination_file = destination_dir / destination_file_name
-
-            try:
-                if self._detect_duplicate(item_path, duplicates_dir):
-                    duplicate_target_name = generate_non_conflicting_name(duplicates_dir, filename)
-                    duplicate_target = duplicates_dir / duplicate_target_name
-                    if dry_run:
-                        self.logger(f"🧪 [Simulação] {filename} -> {duplicates_dir_name}")
-                    else:
-                        shutil.move(str(item_path), str(duplicate_target))
-                        self.operation_log.append({"from": str(item_path), "to": str(duplicate_target)})
-                    moved += 1
-                    self._write_audit_log(
-                        f"DUPLICATE | file={filename} | from={item_path} | to={duplicate_target}"
-                    )
-                    continue
-
-                if dry_run:
-                    self.logger(f"🧪 [Simulação] {filename} -> {target_folder_name}")
-                else:
-                    shutil.move(str(item_path), str(destination_file))
-                    self.operation_log.append({"from": str(item_path), "to": str(destination_file)})
-
-                moved += 1
-                self._write_audit_log(
-                    f"MOVED | file={filename} | from={item_path} | to={destination_file}"
-                )
-                self.logger(f"✅ {filename} movido para {target_folder_name}")
-
-            except Exception as error:
-                errors += 1
-                self.logger(f"❌ Erro ao mover {filename}: {error}")
-                self._write_audit_log(
-                    f"ERROR | file={filename} | from={item_path} | error={error}"
-                )
-
-            self.counters_callback(moved, ignored, errors)
-
-        if not dry_run and self.operation_log:
-            HISTORY_PATH.write_text(json.dumps(self.operation_log, indent=2, ensure_ascii=False), encoding="utf-8")
-
-        self.counters_callback(moved, ignored, errors)
-        self.logger(f"✨ Organização concluída. Arquivos analisados: {total_files}")
-
-    def undo_last_organization(self):
-        if not HISTORY_PATH.exists():
-            self.logger("⚠️ Não há histórico para desfazer.")
-            return
-
-        history = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
-        if not history:
-            self.logger("⚠️ Histórico vazio para desfazer.")
-            return
-
-        restored = 0
-        errors = 0
-
-        for movement in reversed(history):
-            source = Path(movement["from"])
-            destination = Path(movement["to"])
-
-            try:
-                if destination.exists():
-                    source.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(destination), str(source))
-                    restored += 1
-                    self.logger(f"↩️ Restaurado: {destination.name}")
-                    self._write_audit_log(
-                        f"UNDO | file={destination.name} | from={destination} | to={source}"
-                    )
-            except Exception as error:
-                errors += 1
-                self.logger(f"❌ Erro no desfazer ({destination.name}): {error}")
-
-        HISTORY_PATH.write_text("[]", encoding="utf-8")
-        self.logger(f"✅ Desfazer concluído. Restaurados: {restored}. Erros: {errors}.")
-
-
-class FolderMonitorHandler(FileSystemEventHandler):
-    def __init__(self, app, watched_folder):
-        super().__init__()
-        self.app = app
-        self.watched_folder = watched_folder
+        self.notify = notify
 
     def on_created(self, event):
         if event.is_directory:
             return
         time.sleep(2)
-        self.app.organize_single_file(Path(event.src_path), self.watched_folder)
+        core.move_file(
+            event.src_path,
+            self.folder_path,
+            self.config,
+            logger=self.logger,
+            notify=self.notify,
+        )
 
 
-class ModernFileOrganizerApp:
-    def __init__(self, root):
+# ==========================================
+# APLICAÇÃO PRINCIPAL
+# ==========================================
+class FileOrganizerApp:
+    def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Organizador de Arquivos")
-        self.root.geometry("1080x720")
-        self.root.minsize(980, 640)
+        self.root.geometry("1060x760")
+        self.root.minsize(960, 680)
         self.root.configure(bg="#0f172a")
 
-        self.config_data = load_config()
-        self.monitored_folders = [DOWNLOADS_PATH, DESKTOP_PATH, DOCUMENTS_PATH]
-        self.observers = []
+        self.config = core.load_config()
+
+        # Estado de monitoramento: {folder_path: Observer}
+        self.observers: dict[str, Observer] = {}
         self.monitoring = False
 
-        self.engine = OrganizerEngine(
-            config=self.config_data,
-            logger=self.log,
-            progress_callback=self.update_progress,
-            counters_callback=self.update_counters,
-        )
+        # Contadores da sessão
+        self.counter_moved = 0
+        self.counter_ignored = 0
+        self.counter_errors = 0
+
+        # Tray
+        self.tray_icon = None
 
         self._setup_style()
         self._build_ui()
+        self._update_counter_display()
 
+    # ──────────────────────────────────────
+    # ESTILOS
+    # ──────────────────────────────────────
     def _setup_style(self):
-        style = ttk.Style()
-        style.theme_use("clam")
+        s = ttk.Style()
+        s.theme_use("clam")
 
-        style.configure("Main.TFrame", background="#0f172a")
-        style.configure("Card.TFrame", background="#1e293b", relief="flat")
-        style.configure("Header.TLabel", background="#0f172a", foreground="#f8fafc", font=("Segoe UI", 22, "bold"))
-        style.configure("SubHeader.TLabel", background="#0f172a", foreground="#94a3b8", font=("Segoe UI", 10))
-        style.configure("CardTitle.TLabel", background="#1e293b", foreground="#f8fafc", font=("Segoe UI", 13, "bold"))
-        style.configure("CardText.TLabel", background="#1e293b", foreground="#cbd5e1", font=("Segoe UI", 10))
-        style.configure("Status.TLabel", background="#1e293b", foreground="#38bdf8", font=("Segoe UI", 12, "bold"))
-        style.configure("Primary.TButton", font=("Segoe UI", 10, "bold"), padding=10, background="#2563eb", foreground="#ffffff")
-        style.map("Primary.TButton", background=[("active", "#1d4ed8")])
-        style.configure("Success.TButton", font=("Segoe UI", 10, "bold"), padding=10, background="#16a34a", foreground="#ffffff")
-        style.map("Success.TButton", background=[("active", "#15803d")])
-        style.configure("Danger.TButton", font=("Segoe UI", 10, "bold"), padding=10, background="#dc2626", foreground="#ffffff")
-        style.map("Danger.TButton", background=[("active", "#b91c1c")])
-        style.configure("Secondary.TButton", font=("Segoe UI", 10, "bold"), padding=10, background="#334155", foreground="#ffffff")
-        style.map("Secondary.TButton", background=[("active", "#475569")])
+        bg_main = "#0f172a"
+        bg_card = "#1e293b"
+        fg_title = "#f8fafc"
+        fg_sub = "#94a3b8"
+        fg_body = "#cbd5e1"
+        accent = "#38bdf8"
 
+        s.configure("Main.TFrame", background=bg_main)
+        s.configure("Card.TFrame", background=bg_card, relief="flat")
+
+        s.configure("Header.TLabel", background=bg_main, foreground=fg_title,
+                     font=("Segoe UI", 22, "bold"))
+        s.configure("SubHeader.TLabel", background=bg_main, foreground=fg_sub,
+                     font=("Segoe UI", 10))
+        s.configure("CardTitle.TLabel", background=bg_card, foreground=fg_title,
+                     font=("Segoe UI", 13, "bold"))
+        s.configure("CardText.TLabel", background=bg_card, foreground=fg_body,
+                     font=("Segoe UI", 10))
+        s.configure("Status.TLabel", background=bg_card, foreground=accent,
+                     font=("Segoe UI", 12, "bold"))
+        s.configure("CounterValue.TLabel", background=bg_card, foreground=fg_title,
+                     font=("Segoe UI", 20, "bold"))
+        s.configure("CounterLabel.TLabel", background=bg_card, foreground=fg_sub,
+                     font=("Segoe UI", 9))
+
+        for name, bg_color, bg_active in [
+            ("Primary.TButton",   "#2563eb", "#1d4ed8"),
+            ("Success.TButton",   "#16a34a", "#15803d"),
+            ("Danger.TButton",    "#dc2626", "#b91c1c"),
+            ("Secondary.TButton", "#334155", "#475569"),
+            ("Warning.TButton",   "#d97706", "#b45309"),
+            ("Info.TButton",      "#0891b2", "#0e7490"),
+        ]:
+            s.configure(name, font=("Segoe UI", 10, "bold"), padding=8,
+                        background=bg_color, foreground="#ffffff")
+            s.map(name, background=[("active", bg_active)])
+
+        s.configure("Horizontal.TProgressbar",
+                    background="#2563eb", troughcolor="#1e293b", thickness=8)
+
+    # ──────────────────────────────────────
+    # CONSTRUÇÃO DA UI
+    # ──────────────────────────────────────
     def _build_ui(self):
-        self.main = ttk.Frame(self.root, style="Main.TFrame", padding=24)
-        self.main.pack(fill="both", expand=True)
+        # Container com scroll
+        canvas = tk.Canvas(self.root, bg="#0f172a", highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
+        self.main = ttk.Frame(canvas, style="Main.TFrame", padding=24)
+
+        self.main.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=self.main, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind mousewheel
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         self._build_header()
-        self._build_cards()
-        self._build_actions()
+        self._build_counters()
+        self._build_actions_row1()
+        self._build_actions_row2()
+        self._build_monitored_folders()
+        self._build_progress()
         self._build_logs()
 
     def _build_header(self):
-        header_frame = ttk.Frame(self.main, style="Main.TFrame")
-        header_frame.pack(fill="x", pady=(0, 18))
+        frame = ttk.Frame(self.main, style="Main.TFrame")
+        frame.pack(fill="x", pady=(0, 16))
 
-        ttk.Label(header_frame, text="Organizador de Arquivos", style="Header.TLabel").pack(anchor="w")
+        ttk.Label(frame, text="Organizador de Arquivos", style="Header.TLabel").pack(anchor="w")
         ttk.Label(
-            header_frame,
-            text="Monitoramento multi-pasta, simulação, desfazer, logs e organização por extensão/data.",
+            frame,
+            text="Organize, monitore e gerencie seus arquivos automaticamente.",
             style="SubHeader.TLabel",
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="w", pady=(4, 0))
 
-    def _build_cards(self):
-        cards_frame = ttk.Frame(self.main, style="Main.TFrame")
-        cards_frame.pack(fill="x", pady=(0, 18))
+    def _build_counters(self):
+        """Cards de contadores: movidos, ignorados, erros, status."""
+        frame = ttk.Frame(self.main, style="Main.TFrame")
+        frame.pack(fill="x", pady=(0, 14))
 
-        for index in range(4):
-            cards_frame.columnconfigure(index, weight=1)
+        for i in range(4):
+            frame.columnconfigure(i, weight=1)
 
-        status_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=16)
-        status_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        ttk.Label(status_card, text="Status", style="CardTitle.TLabel").pack(anchor="w")
-        self.status_var = tk.StringVar(value="Parado")
-        ttk.Label(status_card, textvariable=self.status_var, style="Status.TLabel").pack(anchor="w", pady=(10, 0))
+        data = [
+            ("Movidos", "counter_moved_var",   "#22c55e"),
+            ("Ignorados", "counter_ignored_var", "#f59e0b"),
+            ("Erros", "counter_errors_var",     "#ef4444"),
+            ("Status", "status_var",            "#38bdf8"),
+        ]
 
-        moved_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=16)
-        moved_card.grid(row=0, column=1, sticky="nsew", padx=8)
-        ttk.Label(moved_card, text="Movidos hoje", style="CardTitle.TLabel").pack(anchor="w")
-        self.moved_var = tk.StringVar(value="0")
-        ttk.Label(moved_card, textvariable=self.moved_var, style="Status.TLabel").pack(anchor="w", pady=(10, 0))
+        for col, (label, var_name, color) in enumerate(data):
+            card = ttk.Frame(frame, style="Card.TFrame", padding=14)
+            padx = (0, 8) if col == 0 else (8, 0) if col == 3 else 8
+            card.grid(row=0, column=col, sticky="nsew", padx=padx)
 
-        ignored_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=16)
-        ignored_card.grid(row=0, column=2, sticky="nsew", padx=8)
-        ttk.Label(ignored_card, text="Ignorados", style="CardTitle.TLabel").pack(anchor="w")
-        self.ignored_var = tk.StringVar(value="0")
-        ttk.Label(ignored_card, textvariable=self.ignored_var, style="Status.TLabel").pack(anchor="w", pady=(10, 0))
+            if var_name == "status_var":
+                sv = tk.StringVar(value="Parado")
+                setattr(self, var_name, sv)
+                ttk.Label(card, textvariable=sv, style="Status.TLabel").pack(anchor="w")
+            else:
+                sv = tk.StringVar(value="0")
+                setattr(self, var_name, sv)
+                lbl = ttk.Label(card, textvariable=sv, style="CounterValue.TLabel")
+                lbl.pack(anchor="w")
+                lbl.configure(foreground=color)
 
-        errors_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=16)
-        errors_card.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
-        ttk.Label(errors_card, text="Erros", style="CardTitle.TLabel").pack(anchor="w")
-        self.errors_var = tk.StringVar(value="0")
-        ttk.Label(errors_card, textvariable=self.errors_var, style="Status.TLabel").pack(anchor="w", pady=(10, 0))
+            ttk.Label(card, text=label, style="CounterLabel.TLabel").pack(anchor="w", pady=(4, 0))
 
-    def _build_actions(self):
-        actions_card = ttk.Frame(self.main, style="Card.TFrame", padding=18)
-        actions_card.pack(fill="x", pady=(0, 18))
+    def _build_actions_row1(self):
+        """Primeira fileira de botões: organizar, simular, desfazer."""
+        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
+        card.pack(fill="x", pady=(0, 10))
 
-        ttk.Label(actions_card, text="Ações rápidas", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+        ttk.Label(card, text="Organização", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
 
-        options_frame = ttk.Frame(actions_card, style="Card.TFrame")
-        options_frame.pack(fill="x", pady=(0, 12))
+        bf = ttk.Frame(card, style="Card.TFrame")
+        bf.pack(fill="x")
+        for i in range(6):
+            bf.columnconfigure(i, weight=1)
 
-        self.simulation_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_frame, text="Modo simulação", variable=self.simulation_var).pack(side="left")
+        ttk.Button(bf, text="📁 Downloads", style="Primary.TButton",
+                   command=self._organize_downloads).grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
-        ttk.Label(options_frame, text="Modo:", style="CardText.TLabel").pack(side="left", padx=(12, 4))
-        self.mode_var = tk.StringVar(value="extension")
-        mode_box = ttk.Combobox(
-            options_frame,
-            textvariable=self.mode_var,
-            state="readonly",
-            values=["extension", "date", "combined"],
-            width=14,
+        ttk.Button(bf, text="🖥️ Desktop", style="Primary.TButton",
+                   command=self._organize_desktop).grid(row=0, column=1, padx=6, sticky="ew")
+
+        ttk.Button(bf, text="📂 Outra pasta...", style="Info.TButton",
+                   command=self._organize_custom).grid(row=0, column=2, padx=6, sticky="ew")
+
+        ttk.Button(bf, text="🔍 Simular", style="Warning.TButton",
+                   command=self._simulate).grid(row=0, column=3, padx=6, sticky="ew")
+
+        ttk.Button(bf, text="⏪ Desfazer", style="Secondary.TButton",
+                   command=self._undo).grid(row=0, column=4, padx=6, sticky="ew")
+
+        ttk.Button(bf, text="📄 Duplicados", style="Secondary.TButton",
+                   command=self._find_duplicates).grid(row=0, column=5, padx=(6, 0), sticky="ew")
+
+    def _build_actions_row2(self):
+        """Segunda fileira: monitoramento, config, tray."""
+        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
+        card.pack(fill="x", pady=(0, 10))
+
+        ttk.Label(card, text="Monitoramento e Configuração", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
+
+        bf = ttk.Frame(card, style="Card.TFrame")
+        bf.pack(fill="x")
+        for i in range(5):
+            bf.columnconfigure(i, weight=1)
+
+        self.btn_start = ttk.Button(
+            bf, text="▶ Iniciar Monitor", style="Success.TButton",
+            command=self._start_monitoring,
         )
-        mode_box.pack(side="left")
+        self.btn_start.grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
-        ttk.Button(
-            options_frame,
-            text="Selecionar pasta para organizar",
-            style="Secondary.TButton",
-            command=self.select_and_organize_folder,
-        ).pack(side="right")
-
-        buttons_frame = ttk.Frame(actions_card, style="Card.TFrame")
-        buttons_frame.pack(fill="x")
-
-        for index in range(4):
-            buttons_frame.columnconfigure(index, weight=1)
-
-        ttk.Button(
-            buttons_frame,
-            text="📁 Organizar Downloads",
-            style="Primary.TButton",
-            command=lambda: self.organize_path(DOWNLOADS_PATH),
-        ).grid(row=0, column=0, padx=(0, 8), sticky="ew")
-
-        ttk.Button(
-            buttons_frame,
-            text="🖥️ Organizar Desktop",
-            style="Primary.TButton",
-            command=lambda: self.organize_path(DESKTOP_PATH),
-        ).grid(row=0, column=1, padx=8, sticky="ew")
-
-        ttk.Button(
-            buttons_frame,
-            text="↩️ Desfazer última organização",
-            style="Danger.TButton",
-            command=self.undo_last,
-        ).grid(row=0, column=2, padx=8, sticky="ew")
-
-        self.monitor_button = ttk.Button(
-            buttons_frame,
-            text="▶ Iniciar monitoramento",
-            style="Success.TButton",
-            command=self.toggle_monitoring,
+        self.btn_stop = ttk.Button(
+            bf, text="■ Parar Monitor", style="Danger.TButton",
+            command=self._stop_monitoring, state="disabled",
         )
-        self.monitor_button.grid(row=0, column=3, padx=(8, 0), sticky="ew")
+        self.btn_stop.grid(row=0, column=1, padx=6, sticky="ew")
 
-        monitored_frame = ttk.Frame(actions_card, style="Card.TFrame")
-        monitored_frame.pack(fill="x", pady=(12, 0))
+        ttk.Button(bf, text="⚙ Categorias", style="Secondary.TButton",
+                   command=self._edit_categories).grid(row=0, column=2, padx=6, sticky="ew")
 
-        ttk.Label(monitored_frame, text="Pastas monitoradas:", style="CardText.TLabel").pack(anchor="w")
-        self.monitored_var = tk.StringVar(value=self._monitored_label())
-        ttk.Label(monitored_frame, textvariable=self.monitored_var, style="CardText.TLabel", wraplength=980).pack(anchor="w", pady=(4, 0))
+        ttk.Button(bf, text="📏 Regras", style="Secondary.TButton",
+                   command=self._edit_rules).grid(row=0, column=3, padx=6, sticky="ew")
 
-        ttk.Button(
-            monitored_frame,
-            text="+ Adicionar pasta para monitorar",
-            style="Secondary.TButton",
-            command=self.add_monitored_folder,
-        ).pack(anchor="w", pady=(8, 0))
+        # Checkbox organizar por data
+        self.date_var = tk.BooleanVar(value=self.config.get("date_subfolder", False))
+        date_cb = tk.Checkbutton(
+            bf, text="📅 Sub-pastas por data", variable=self.date_var,
+            command=self._toggle_date_mode,
+            bg="#1e293b", fg="#cbd5e1", selectcolor="#334155",
+            activebackground="#1e293b", activeforeground="#cbd5e1",
+            font=("Segoe UI", 10), anchor="w",
+        )
+        date_cb.grid(row=0, column=4, padx=(6, 0), sticky="ew")
 
-        self.progress_var = tk.StringVar(value="Pronto")
-        ttk.Label(actions_card, textvariable=self.progress_var, style="CardText.TLabel").pack(anchor="w", pady=(12, 6))
-        self.progressbar = ttk.Progressbar(actions_card, mode="determinate")
-        self.progressbar.pack(fill="x")
+    def _build_monitored_folders(self):
+        """Lista de pastas sendo monitoradas."""
+        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
+        card.pack(fill="x", pady=(0, 10))
+
+        top = ttk.Frame(card, style="Card.TFrame")
+        top.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(top, text="Pastas monitoradas", style="CardTitle.TLabel").pack(side="left")
+
+        ttk.Button(top, text="+ Adicionar", style="Info.TButton",
+                   command=self._add_monitored_folder).pack(side="right", padx=(8, 0))
+        ttk.Button(top, text="- Remover", style="Danger.TButton",
+                   command=self._remove_monitored_folder).pack(side="right")
+
+        self.folders_listbox = tk.Listbox(
+            card, height=4, font=("Consolas", 10),
+            bg="#020617", fg="#e2e8f0", selectbackground="#2563eb",
+            relief="flat", borderwidth=0,
+        )
+        self.folders_listbox.pack(fill="x")
+
+        # Popula com Downloads + Desktop + salvas
+        default_folders = [core.DOWNLOADS_PATH, core.DESKTOP_PATH]
+        saved = self.config.get("monitored_folders", [])
+        all_folders = list(dict.fromkeys(default_folders + saved))
+
+        for f in all_folders:
+            self.folders_listbox.insert(tk.END, f)
+
+    def _build_progress(self):
+        """Barra de progresso."""
+        frame = ttk.Frame(self.main, style="Main.TFrame")
+        frame.pack(fill="x", pady=(0, 10))
+
+        self.progress_var = tk.DoubleVar(value=0)
+        self.progress_bar = ttk.Progressbar(
+            frame, variable=self.progress_var,
+            maximum=100, style="Horizontal.TProgressbar",
+        )
+        self.progress_bar.pack(fill="x")
+
+        self.progress_label = ttk.Label(frame, text="", style="SubHeader.TLabel")
+        self.progress_label.pack(anchor="w", pady=(4, 0))
 
     def _build_logs(self):
-        logs_card = ttk.Frame(self.main, style="Card.TFrame", padding=18)
-        logs_card.pack(fill="both", expand=True)
+        """Área de logs do sistema."""
+        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
+        card.pack(fill="both", expand=True)
 
-        top_logs = ttk.Frame(logs_card, style="Card.TFrame")
-        top_logs.pack(fill="x", pady=(0, 10))
+        top = ttk.Frame(card, style="Card.TFrame")
+        top.pack(fill="x", pady=(0, 8))
 
-        ttk.Label(top_logs, text="Logs do sistema", style="CardTitle.TLabel").pack(side="left")
-        ttk.Button(top_logs, text="Limpar logs", style="Secondary.TButton", command=self.clear_logs).pack(side="right")
+        ttk.Label(top, text="Logs do sistema", style="CardTitle.TLabel").pack(side="left")
+
+        ttk.Button(top, text="Limpar", style="Secondary.TButton",
+                   command=self._clear_logs).pack(side="right")
 
         self.log_text = scrolledtext.ScrolledText(
-            logs_card,
-            wrap=tk.WORD,
-            font=("Consolas", 10),
-            bg="#020617",
-            fg="#e2e8f0",
-            insertbackground="#e2e8f0",
-            relief="flat",
-            borderwidth=0,
-            height=12,
+            card, wrap=tk.WORD, font=("Consolas", 10),
+            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
+            relief="flat", borderwidth=0, height=10,
         )
         self.log_text.pack(fill="both", expand=True)
 
         self.log("🚀 Sistema iniciado.")
-        self.log(f"🧩 Configuração carregada de: {CONFIG_PATH}")
+        self.log("💡 Use os botões acima para organizar seus arquivos.")
 
-    def _monitored_label(self):
-        return ", ".join([str(path) for path in self.monitored_folders])
-
+    # ──────────────────────────────────────
+    # LOGGING
+    # ──────────────────────────────────────
     def log(self, message: str):
-        def append():
-            current_time = time.strftime("%H:%M:%S")
-            self.log_text.insert(tk.END, f"[{current_time}] {message}\n")
+        def _append():
+            t = time.strftime("%H:%M:%S")
+            self.log_text.insert(tk.END, f"[{t}] {message}\n")
             self.log_text.see(tk.END)
+        self.root.after(0, _append)
 
-        self.root.after(0, append)
-
-    def clear_logs(self):
+    def _clear_logs(self):
         self.log_text.delete("1.0", tk.END)
 
-    def update_progress(self, current, total):
-        def apply_update():
-            if total == 0:
-                self.progressbar["value"] = 0
-                self.progress_var.set("Nenhum arquivo para organizar")
+    # ──────────────────────────────────────
+    # PROGRESSO
+    # ──────────────────────────────────────
+    def _set_progress(self, current: int, total: int):
+        if total <= 0:
+            return
+        pct = (current / total) * 100
+        self.root.after(0, lambda: self.progress_var.set(pct))
+        self.root.after(0, lambda: self.progress_label.configure(
+            text=f"Processando {current}/{total} arquivos..."
+        ))
+
+    def _reset_progress(self):
+        self.root.after(0, lambda: self.progress_var.set(0))
+        self.root.after(0, lambda: self.progress_label.configure(text=""))
+
+    # ──────────────────────────────────────
+    # CONTADORES
+    # ──────────────────────────────────────
+    def _update_counter_display(self):
+        self.counter_moved_var.set(str(self.counter_moved))
+        self.counter_ignored_var.set(str(self.counter_ignored))
+        self.counter_errors_var.set(str(self.counter_errors))
+
+    def _counting_logger(self, message: str):
+        """Logger que também atualiza contadores."""
+        self.log(message)
+        if message.startswith("✅"):
+            self.counter_moved += 1
+        elif message.startswith("⚠️"):
+            self.counter_ignored += 1
+        elif message.startswith("❌"):
+            self.counter_errors += 1
+        self.root.after(0, self._update_counter_display)
+
+    # ──────────────────────────────────────
+    # ORGANIZAÇÃO
+    # ──────────────────────────────────────
+    def _organize_folder(self, folder_path: str):
+        def task():
+            core.organize_folder(
+                folder_path,
+                self.config,
+                logger=self._counting_logger,
+                progress_callback=self._set_progress,
+                notify=self.config.get("notifications_enabled", False),
+            )
+            self._reset_progress()
+        threading.Thread(target=task, daemon=True).start()
+
+    def _organize_downloads(self):
+        self._organize_folder(core.DOWNLOADS_PATH)
+
+    def _organize_desktop(self):
+        self._organize_folder(core.DESKTOP_PATH)
+
+    def _organize_custom(self):
+        folder = filedialog.askdirectory(title="Selecionar pasta para organizar")
+        if folder:
+            self._organize_folder(folder)
+
+    # ──────────────────────────────────────
+    # SIMULAÇÃO
+    # ──────────────────────────────────────
+    def _simulate(self):
+        folder = filedialog.askdirectory(title="Selecionar pasta para simular")
+        if not folder:
+            return
+
+        def task():
+            self.log(f"🔍 Simulação para: {folder}")
+            actions = core.simulate_organization(folder, self.config, logger=self.log)
+            if not actions:
+                self.log("📭 Nenhum arquivo para organizar nesta pasta.")
                 return
-            percent = (current / total) * 100
-            self.progressbar["value"] = percent
-            self.progress_var.set(f"Organizando {current}/{total} arquivos...")
+            # Pergunta se quer executar
+            self.root.after(0, lambda: self._confirm_simulation(folder, actions))
 
-        self.root.after(0, apply_update)
+        threading.Thread(target=task, daemon=True).start()
 
-    def update_counters(self, moved, ignored, errors):
-        def apply_update():
-            self.moved_var.set(str(moved))
-            self.ignored_var.set(str(ignored))
-            self.errors_var.set(str(errors))
+    def _confirm_simulation(self, folder: str, actions: list):
+        resp = messagebox.askyesno(
+            "Executar?",
+            f"{len(actions)} arquivo(s) seriam movidos.\nDeseja executar a organização?",
+        )
+        if resp:
+            self._organize_folder(folder)
 
-        self.root.after(0, apply_update)
-
-    def organize_path(self, path: Path):
-        dry_run = self.simulation_var.get()
-        mode = self.mode_var.get()
-        self.log(f"📁 Iniciando organização em {path} (modo={mode}, simulação={dry_run})")
-
-        threading.Thread(
-            target=self.engine.organize_folder,
-            args=(path, mode, dry_run),
-            daemon=True,
-        ).start()
-
-    def select_and_organize_folder(self):
-        selected = filedialog.askdirectory(title="Selecionar pasta para organizar")
-        if not selected:
-            return
-        self.organize_path(Path(selected))
-
-    def undo_last(self):
-        threading.Thread(target=self.engine.undo_last_organization, daemon=True).start()
-
-    def add_monitored_folder(self):
-        selected = filedialog.askdirectory(title="Selecionar pasta para monitorar")
-        if not selected:
+    # ──────────────────────────────────────
+    # DESFAZER
+    # ──────────────────────────────────────
+    def _undo(self):
+        history = core.load_undo_history()
+        if not history:
+            messagebox.showinfo("Desfazer", "Nenhuma organização recente para desfazer.")
             return
 
-        path = Path(selected)
-        if path in self.monitored_folders:
-            self.log(f"⚠️ Pasta já monitorada: {path}")
+        n = len(history.get("actions", []))
+        ts = history.get("timestamp", "")
+        resp = messagebox.askyesno(
+            "Desfazer",
+            f"Desfazer última organização?\n\n"
+            f"Data: {ts}\n"
+            f"Arquivos: {n}",
+        )
+        if not resp:
             return
 
-        self.monitored_folders.append(path)
-        self.monitored_var.set(self._monitored_label())
-        self.log(f"✅ Pasta adicionada ao monitoramento: {path}")
+        def task():
+            core.undo_last_organization(
+                logger=self.log,
+                progress_callback=self._set_progress,
+            )
+            self._reset_progress()
 
-    def organize_single_file(self, file_path: Path, base_folder: Path):
-        if not file_path.exists() or not file_path.is_file():
+        threading.Thread(target=task, daemon=True).start()
+
+    # ──────────────────────────────────────
+    # DUPLICADOS
+    # ──────────────────────────────────────
+    def _find_duplicates(self):
+        folder = filedialog.askdirectory(title="Selecionar pasta para buscar duplicados")
+        if not folder:
             return
-        self.engine.organize_folder(base_folder, mode=self.mode_var.get(), dry_run=False)
 
-    def toggle_monitoring(self):
+        def task():
+            core.find_duplicates(
+                folder, self.config,
+                logger=self._counting_logger,
+                progress_callback=self._set_progress,
+            )
+            self._reset_progress()
+
+        threading.Thread(target=task, daemon=True).start()
+
+    # ──────────────────────────────────────
+    # MONITORAMENTO
+    # ──────────────────────────────────────
+    def _get_monitored_folders(self) -> list[str]:
+        return list(self.folders_listbox.get(0, tk.END))
+
+    def _start_monitoring(self):
         if self.monitoring:
-            self.stop_monitoring()
-        else:
-            self.start_monitoring()
-
-    def start_monitoring(self):
-        if self.monitoring:
-            self.log("⚠️ O monitoramento já está ativo.")
+            self.log("⚠️ Monitoramento já está ativo.")
             return
 
-        try:
-            for folder in self.monitored_folders:
-                if not folder.exists():
-                    continue
-                handler = FolderMonitorHandler(self, folder)
-                observer = Observer()
-                observer.schedule(handler, str(folder), recursive=False)
-                observer.start()
-                self.observers.append(observer)
+        folders = self._get_monitored_folders()
+        if not folders:
+            messagebox.showwarning("Aviso", "Adicione pelo menos uma pasta para monitorar.")
+            return
 
+        started = 0
+        for folder in folders:
+            if not os.path.exists(folder):
+                self.log(f"⚠️ Pasta não encontrada: {folder}")
+                continue
+
+            handler = FolderHandler(folder, self.config, self._counting_logger, notify=True)
+            obs = Observer()
+            obs.schedule(handler, folder, recursive=False)
+            obs.start()
+            self.observers[folder] = obs
+            started += 1
+            self.log(f"👁️ Monitorando: {folder}")
+
+        if started > 0:
             self.monitoring = True
-            self.status_var.set("Monitorando")
-            self.monitor_button.config(text="■ Parar monitoramento", style="Danger.TButton")
-            self.log(f"✅ Monitoramento iniciado em {len(self.observers)} pasta(s).")
+            self.status_var.set(f"Monitorando ({started})")
+            self.btn_start.config(state="disabled")
+            self.btn_stop.config(state="normal")
+        else:
+            messagebox.showerror("Erro", "Nenhuma pasta válida para monitorar.")
 
-        except Exception as error:
-            messagebox.showerror("Erro", f"Não foi possível iniciar o monitoramento.\n\n{error}")
-
-    def stop_monitoring(self):
+    def _stop_monitoring(self):
         if not self.monitoring:
-            self.log("⚠️ Nenhum monitoramento ativo.")
             return
 
-        for observer in self.observers:
-            observer.stop()
-            observer.join(timeout=2)
+        for folder, obs in self.observers.items():
+            try:
+                obs.stop()
+                obs.join(timeout=2)
+            except Exception:
+                pass
 
-        self.observers = []
+        self.observers.clear()
         self.monitoring = False
         self.status_var.set("Parado")
-        self.monitor_button.config(text="▶ Iniciar monitoramento", style="Success.TButton")
+        self.btn_start.config(state="normal")
+        self.btn_stop.config(state="disabled")
         self.log("🛑 Monitoramento encerrado.")
 
+    def _add_monitored_folder(self):
+        folder = filedialog.askdirectory(title="Adicionar pasta para monitorar")
+        if folder and folder not in self._get_monitored_folders():
+            self.folders_listbox.insert(tk.END, folder)
+            # Salva no config
+            saved = self.config.get("monitored_folders", [])
+            saved.append(folder)
+            self.config["monitored_folders"] = saved
+            core.save_config(self.config)
+            self.log(f"➕ Pasta adicionada: {folder}")
+
+    def _remove_monitored_folder(self):
+        sel = self.folders_listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Selecione uma pasta na lista para remover.")
+            return
+        idx = sel[0]
+        folder = self.folders_listbox.get(idx)
+        self.folders_listbox.delete(idx)
+        # Remove do config
+        saved = self.config.get("monitored_folders", [])
+        if folder in saved:
+            saved.remove(folder)
+            self.config["monitored_folders"] = saved
+            core.save_config(self.config)
+        self.log(f"➖ Pasta removida: {folder}")
+
+    # ──────────────────────────────────────
+    # TOGGLE DATA
+    # ──────────────────────────────────────
+    def _toggle_date_mode(self):
+        self.config["date_subfolder"] = self.date_var.get()
+        core.save_config(self.config)
+        state = "ativada" if self.date_var.get() else "desativada"
+        self.log(f"📅 Organização por data: {state}")
+
+    # ──────────────────────────────────────
+    # EDITOR DE CATEGORIAS
+    # ──────────────────────────────────────
+    def _edit_categories(self):
+        win = tk.Toplevel(self.root)
+        win.title("Editar categorias")
+        win.geometry("600x500")
+        win.configure(bg="#0f172a")
+        win.transient(self.root)
+        win.grab_set()
+
+        ttk.Label(win, text="Categorias (config.json)", style="Header.TLabel").pack(
+            anchor="w", padx=16, pady=(16, 4))
+
+        ttk.Label(
+            win,
+            text="Edite o JSON abaixo. Cada chave é o nome da pasta e o valor é a lista de extensões.",
+            style="SubHeader.TLabel",
+        ).pack(anchor="w", padx=16, pady=(0, 10))
+
+        text = scrolledtext.ScrolledText(
+            win, wrap=tk.WORD, font=("Consolas", 11),
+            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
+            relief="flat", borderwidth=0,
+        )
+        text.pack(fill="both", expand=True, padx=16, pady=(0, 10))
+        text.insert("1.0", json.dumps(self.config.get("categories", {}), indent=4, ensure_ascii=False))
+
+        def save():
+            try:
+                new_cats = json.loads(text.get("1.0", tk.END))
+                self.config["categories"] = new_cats
+                core.save_config(self.config)
+                self.log("✅ Categorias atualizadas.")
+                win.destroy()
+            except json.JSONDecodeError as e:
+                messagebox.showerror("JSON inválido", f"Erro de sintaxe:\n{e}", parent=win)
+
+        btn_frame = ttk.Frame(win, style="Main.TFrame")
+        btn_frame.pack(fill="x", padx=16, pady=(0, 16))
+        ttk.Button(btn_frame, text="Salvar", style="Success.TButton", command=save).pack(side="right")
+        ttk.Button(btn_frame, text="Cancelar", style="Secondary.TButton",
+                   command=win.destroy).pack(side="right", padx=(0, 8))
+
+    # ──────────────────────────────────────
+    # EDITOR DE REGRAS
+    # ──────────────────────────────────────
+    def _edit_rules(self):
+        win = tk.Toplevel(self.root)
+        win.title("Regras personalizadas")
+        win.geometry("650x550")
+        win.configure(bg="#0f172a")
+        win.transient(self.root)
+        win.grab_set()
+
+        ttk.Label(win, text="Regras personalizadas", style="Header.TLabel").pack(
+            anchor="w", padx=16, pady=(16, 4))
+
+        ttk.Label(
+            win,
+            text=(
+                "Regras são aplicadas ANTES das categorias por extensão.\n"
+                "Condições possíveis: extension, name_contains, name_starts_with\n"
+                'Exemplo: {"name": "Notas", "conditions": {"extension": ".pdf", "name_contains": "nota"}, "destination": "Notas Fiscais"}'
+            ),
+            style="SubHeader.TLabel",
+        ).pack(anchor="w", padx=16, pady=(0, 10))
+
+        text = scrolledtext.ScrolledText(
+            win, wrap=tk.WORD, font=("Consolas", 11),
+            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
+            relief="flat", borderwidth=0,
+        )
+        text.pack(fill="both", expand=True, padx=16, pady=(0, 10))
+        text.insert("1.0", json.dumps(
+            self.config.get("custom_rules", []), indent=4, ensure_ascii=False
+        ))
+
+        def save():
+            try:
+                new_rules = json.loads(text.get("1.0", tk.END))
+                if not isinstance(new_rules, list):
+                    raise ValueError("O JSON precisa ser uma lista [].")
+                self.config["custom_rules"] = new_rules
+                core.save_config(self.config)
+                self.log(f"✅ {len(new_rules)} regra(s) salva(s).")
+                win.destroy()
+            except (json.JSONDecodeError, ValueError) as e:
+                messagebox.showerror("Erro", str(e), parent=win)
+
+        btn_frame = ttk.Frame(win, style="Main.TFrame")
+        btn_frame.pack(fill="x", padx=16, pady=(0, 16))
+        ttk.Button(btn_frame, text="Salvar", style="Success.TButton", command=save).pack(side="right")
+        ttk.Button(btn_frame, text="Cancelar", style="Secondary.TButton",
+                   command=win.destroy).pack(side="right", padx=(0, 8))
+
+    # ──────────────────────────────────────
+    # SYSTEM TRAY
+    # ──────────────────────────────────────
+    def _minimize_to_tray(self):
+        if not HAS_TRAY:
+            self.root.iconify()
+            return
+
+        self.root.withdraw()
+
+        image = Image.new("RGB", (64, 64), "#2563eb")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([16, 16, 48, 48], fill="#ffffff")
+        draw.rectangle([20, 20, 44, 44], fill="#2563eb")
+
+        menu = pystray.Menu(
+            pystray.MenuItem("Abrir", self._restore_from_tray),
+            pystray.MenuItem("Sair", self._quit_from_tray),
+        )
+
+        self.tray_icon = pystray.Icon("organizador", image, "Organizador de Arquivos", menu)
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def _restore_from_tray(self, icon=None, item=None):
+        if self.tray_icon:
+            self.tray_icon.stop()
+            self.tray_icon = None
+        self.root.after(0, self.root.deiconify)
+
+    def _quit_from_tray(self, icon=None, item=None):
+        if self.tray_icon:
+            self.tray_icon.stop()
+        self.root.after(0, self.on_close)
+
+    # ──────────────────────────────────────
+    # ENCERRAMENTO
+    # ──────────────────────────────────────
     def on_close(self):
         if self.monitoring:
-            self.stop_monitoring()
+            self._stop_monitoring()
+        if self.tray_icon:
+            self.tray_icon.stop()
         self.root.destroy()
 
 
+# ==========================================
+# MAIN
+# ==========================================
 def main():
     root = tk.Tk()
-    app = ModernFileOrganizerApp(root)
-    root.protocol("WM_DELETE_WINDOW", app.on_close)
+    app = FileOrganizerApp(root)
+
+    # Minimizar para tray via botão fechar (se habilitado no config)
+    def handle_close():
+        if app.config.get("minimize_to_tray") and HAS_TRAY:
+            app._minimize_to_tray()
+        else:
+            app.on_close()
+
+    root.protocol("WM_DELETE_WINDOW", handle_close)
     root.mainloop()
 
 

@@ -1,40 +1,97 @@
-# desktop-helper
+# Desktop Helper — Organizador de Arquivos
 
-App desktop em `tkinter` para organizar arquivos com interface moderna.
+Ferramenta para organizar automaticamente arquivos de Downloads, Desktop e qualquer outra pasta do seu computador.
 
-## Novidades
+## Funcionalidades
 
-- Seleção manual de pasta para organizar (`filedialog`).
-- Categorias e regras customizáveis via `config.json`.
-- Modo simulação (dry-run) antes de mover arquivos.
-- Histórico da última execução com botão de desfazer.
-- Logs de auditoria em `logs/organizador_YYYY-MM-DD.log`.
-- Ignorar nomes/extensões sensíveis (ex: `desktop.ini`).
-- Organização por extensão, data ou combinado.
-- Detecção simples de duplicados por hash (`SHA-256`).
-- Barra de progresso e cards de indicadores (movidos/ignorados/erros).
-- Monitoramento de múltiplas pastas.
+| #  | Funcionalidade | Descrição |
+|----|---------------|-----------|
+| 1  | Selecionar pastas | Organize qualquer pasta do sistema, não apenas Downloads e Desktop |
+| 2  | Categorias editáveis | As extensões e pastas de destino são configuráveis via `config.json` ou pelo editor visual |
+| 3  | Modo simulação | Veja o que seria feito antes de mover qualquer arquivo |
+| 4  | Log em arquivo | Todas as ações ficam registradas em `logs/organizador_YYYY-MM-DD.log` |
+| 5  | Desfazer | Reverta a última organização com um clique |
+| 6  | Ignorar arquivos | `desktop.ini`, `.lnk`, `.tmp` e outros são ignorados automaticamente |
+| 7  | Organizar por data | Opcionalmente cria sub-pastas por ano/mês (ex: `PDFs/2026/04-Abril/`) |
+| 8  | Detectar duplicados | Encontra arquivos duplicados por hash MD5 e move para `Duplicados/` |
+| 9  | Barra de progresso | Acompanhe o progresso em tempo real |
+| 10 | Dashboard | Contadores de arquivos movidos, ignorados e erros na sessão |
+| 11 | Minimizar para bandeja | Roda em segundo plano no system tray (requer `pystray` e `Pillow`) |
+| 12 | Executável `.exe` | Script `build.bat` incluso para gerar o executável via PyInstaller |
+| 13 | Notificações | Alertas do sistema quando um arquivo é organizado (requer `plyer`) |
+| 14 | Monitorar várias pastas | Adicione quantas pastas quiser ao monitoramento simultâneo |
+| 15 | Regras personalizadas | Regras tipo: se é `.pdf` e contém "nota" no nome → `Notas Fiscais/` |
 
-## Como executar
+## Instalação
 
 ```bash
-pip install watchdog
+# Clone o repositório
+git clone https://github.com/seu-usuario/desktop-helper.git
+cd desktop-helper
+
+# Instale as dependências
+pip install -r requirements.txt
+
+# Execute
 python organizador_gui.py
+```
+
+### Dependências obrigatórias
+
+- `watchdog` — monitoramento de pastas
+
+### Dependências opcionais
+
+- `plyer` — notificações do sistema
+- `pystray` + `Pillow` — minimizar para bandeja do sistema
+
+## Gerar executável (.exe)
+
+```bash
+# No Windows, basta rodar:
+build.bat
+```
+
+O executável será criado em `dist/Organizador de Arquivos.exe`.
+
+## Estrutura do projeto
+
+```
+desktop-helper/
+├── config.json            # Configuração de categorias, regras e preferências
+├── core.py                # Lógica de negócio (mover, desfazer, duplicados, etc.)
+├── organizador_gui.py     # Interface gráfica (tkinter)
+├── requirements.txt       # Dependências Python
+├── build.bat              # Script para gerar .exe
+├── logs/                  # Logs diários (criado automaticamente)
+└── undo_history.json      # Histórico para desfazer (criado automaticamente)
 ```
 
 ## Configuração
 
-Edite o arquivo `config.json` para personalizar:
+Edite `config.json` diretamente ou use os botões **⚙ Categorias** e **📏 Regras** na interface.
 
-- categorias por extensão;
-- extensões/nomes ignorados;
-- regras por nome + extensão;
-- pasta de duplicados.
+### Exemplo de regra personalizada
 
-## Executável Windows
-
-```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed organizador_gui.py
+```json
+{
+    "name": "Notas Fiscais",
+    "conditions": {
+        "extension": ".pdf",
+        "name_contains": "nota"
+    },
+    "destination": "Notas Fiscais"
+}
 ```
 
+### Condições disponíveis
+
+| Condição | Tipo | Exemplo |
+|----------|------|---------|
+| `extension` | string ou lista | `".pdf"` ou `[".pdf", ".xml"]` |
+| `name_contains` | string | `"nota"` |
+| `name_starts_with` | string | `"IMG_"` |
+
+## Licença
+
+MIT License — veja [LICENSE](LICENSE) para detalhes.

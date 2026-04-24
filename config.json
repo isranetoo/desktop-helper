@@ -1,29 +1,135 @@
 {
-  "categories": {
-    "Imagens": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"],
-    "PDFs": [".pdf"],
-    "Documentos": [".doc", ".docx", ".txt", ".odt", ".rtf"],
-    "Planilhas": [".xls", ".xlsx", ".csv"],
-    "Apresentacoes": [".ppt", ".pptx"],
-    "Compactados": [".zip", ".rar", ".7z", ".tar", ".gz"],
-    "Executaveis": [".exe", ".msi"],
-    "Videos": [".mp4", ".mkv", ".avi", ".mov", ".wmv"],
-    "Audios": [".mp3", ".wav", ".flac", ".aac"],
-    "Codigos": [".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css", ".java", ".cpp"]
-  },
-  "ignored_extensions": [".lnk", ".ini", ".tmp", ".part", ".crdownload"],
-  "ignored_names": ["desktop.ini"],
-  "rules": [
-    {
-      "if_extension": ".pdf",
-      "name_contains": "nota",
-      "target": "Notas Fiscais"
+    "categories": {
+        "Imagens": [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".webp",
+            ".svg",
+            ".ico",
+            ".tiff"
+        ],
+        "PDFs": [
+            ".pdf"
+        ],
+        "Documentos": [
+            ".doc",
+            ".docx",
+            ".txt",
+            ".odt",
+            ".rtf",
+            ".md",
+            ".epub"
+        ],
+        "Planilhas": [
+            ".xls",
+            ".xlsx",
+            ".csv",
+            ".ods"
+        ],
+        "Apresentacoes": [
+            ".ppt",
+            ".pptx",
+            ".odp"
+        ],
+        "Compactados": [
+            ".zip",
+            ".rar",
+            ".7z",
+            ".tar",
+            ".gz",
+            ".bz2",
+            ".xz"
+        ],
+        "Executaveis": [
+            ".exe",
+            ".msi",
+            ".appimage",
+            ".deb",
+            ".rpm"
+        ],
+        "Videos": [
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".flv",
+            ".webm"
+        ],
+        "Audios": [
+            ".mp3",
+            ".wav",
+            ".flac",
+            ".aac",
+            ".ogg",
+            ".wma",
+            ".m4a"
+        ],
+        "Codigos": [
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".html",
+            ".css",
+            ".java",
+            ".cpp",
+            ".c",
+            ".h",
+            ".go",
+            ".rs",
+            ".rb",
+            ".php",
+            ".sql",
+            ".sh",
+            ".bat"
+        ],
+        "Fontes": [
+            ".ttf",
+            ".otf",
+            ".woff",
+            ".woff2"
+        ],
+        "ISOs": [
+            ".iso",
+            ".img"
+        ]
     },
-    {
-      "if_extension": ".jpg",
-      "name_contains": "print",
-      "target": "Screenshots"
-    }
-  ],
-  "duplicates_folder": "Duplicados"
+    "ignored_extensions": [
+        ".lnk",
+        ".ini",
+        ".url"
+    ],
+    "ignored_names": [
+        "desktop.ini",
+        "Thumbs.db",
+        ".DS_Store"
+    ],
+    "custom_rules": [
+        {
+            "name": "Notas Fiscais",
+            "conditions": {
+                "extension": ".pdf",
+                "name_contains": "nota"
+            },
+            "destination": "Notas Fiscais"
+        },
+        {
+            "name": "Screenshots",
+            "conditions": {
+                "extension": ".png",
+                "name_contains": "screenshot"
+            },
+            "destination": "Screenshots"
+        }
+    ],
+    "monitored_folders": [],
+    "organize_mode": "extension",
+    "date_subfolder": true,
+    "notifications_enabled": true,
+    "minimize_to_tray": false
 }
