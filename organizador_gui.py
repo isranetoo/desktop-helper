@@ -10,6 +10,7 @@ import time
 import json
 import sys
 import threading
+import ctypes
 from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox, filedialog
@@ -63,12 +64,30 @@ COLORS = {
 
 ICON_ICO_PATH = os.path.join("generated", "icons", "sortify.ico")
 ICON_PNG_PATH = os.path.join("generated", "icons", "sortify.png")
+APP_USER_MODEL_ID = "com.sortify.desktophelper"
 
 
 def get_resource_path(relative_path: str) -> str:
     """Resolve caminho para arquivos locais e para bundle do PyInstaller."""
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, relative_path)
+
+
+def set_windows_app_id() -> None:
+    """
+    Define um AppUserModelID explícito no Windows.
+
+    Isso ajuda o Windows a aplicar corretamente o ícone no atalho do app e
+    também na barra de tarefas, em vez do ícone padrão do Python.
+    """
+    if os.name != "nt":
+        return
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            APP_USER_MODEL_ID
+        )
+    except (AttributeError, OSError):
+        pass
 
 
 # ==========================================
@@ -1459,6 +1478,7 @@ class FileOrganizerApp(ctk.CTk):
 # MAIN
 # ==========================================
 def main():
+    set_windows_app_id()
     app = FileOrganizerApp()
 
     def handle_close():
