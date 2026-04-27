@@ -66,9 +66,14 @@ DEFAULT_CONFIG = {
     "date_subfolder": False,
     "notifications_enabled": True,
     "minimize_to_tray": False,
+    "scheduled_enabled": False,
+    "scheduled_mode": "daily",
+    "scheduled_time": "18:00",
+    "scheduled_interval_minutes": 60,
 }
 
 ALLOWED_ORGANIZE_MODES = {"extension", "date"}
+ALLOWED_SCHEDULE_MODES = {"daily", "interval"}
 SKIP_DUPLICATE_DIRS = {"Duplicados", "logs", "__pycache__", ".git"}
 UNDO_FILE_VERSION = 2
 MAX_UNDO_ENTRIES = 30
@@ -192,6 +197,38 @@ def validate_config(config: dict, logger: Optional[logging.Logger] = None) -> di
             validated[bool_key] = raw_value
         elif logger and bool_key in config:
             logger.warning(f"Config inválida: {bool_key} deve ser booleano; mantendo padrão.")
+
+    raw_scheduled_enabled = config.get("scheduled_enabled", validated["scheduled_enabled"])
+    if isinstance(raw_scheduled_enabled, bool):
+        validated["scheduled_enabled"] = raw_scheduled_enabled
+    elif logger and "scheduled_enabled" in config:
+        logger.warning("Config inválida: scheduled_enabled deve ser booleano; mantendo padrão.")
+
+    schedule_mode = str(config.get("scheduled_mode", validated["scheduled_mode"])).strip().lower()
+    if schedule_mode in ALLOWED_SCHEDULE_MODES:
+        validated["scheduled_mode"] = schedule_mode
+    elif logger and "scheduled_mode" in config:
+        logger.warning("Config inválida: scheduled_mode fora do permitido; mantendo padrão.")
+
+    schedule_time = str(config.get("scheduled_time", validated["scheduled_time"])).strip()
+    if len(schedule_time) == 5 and schedule_time[2] == ":":
+        hh, mm = schedule_time[:2], schedule_time[3:]
+        if hh.isdigit() and mm.isdigit() and 0 <= int(hh) <= 23 and 0 <= int(mm) <= 59:
+            validated["scheduled_time"] = schedule_time
+        elif logger and "scheduled_time" in config:
+            logger.warning("Config inválida: scheduled_time deve ser HH:MM (24h); mantendo padrão.")
+    elif logger and "scheduled_time" in config:
+        logger.warning("Config inválida: scheduled_time deve ser HH:MM (24h); mantendo padrão.")
+
+    raw_interval = config.get("scheduled_interval_minutes", validated["scheduled_interval_minutes"])
+    if isinstance(raw_interval, int) and raw_interval > 0:
+        validated["scheduled_interval_minutes"] = raw_interval
+    elif isinstance(raw_interval, str) and raw_interval.strip().isdigit() and int(raw_interval.strip()) > 0:
+        validated["scheduled_interval_minutes"] = int(raw_interval.strip())
+    elif logger and "scheduled_interval_minutes" in config:
+        logger.warning(
+            "Config inválida: scheduled_interval_minutes deve ser inteiro > 0; mantendo padrão."
+        )
 
     return validated
 
@@ -757,6 +794,7 @@ def find_duplicates(
             fp = os.path.join(root, f)
             if os.path.isfile(fp) and not should_ignore(f, config):
                 all_files.append(fp)
+    all_files.sort()
 
     total = len(all_files)
     hash_map: dict[str, str] = {}
