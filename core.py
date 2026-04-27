@@ -408,7 +408,8 @@ def organize_folder(
                 progress_callback(i + 1, total)
             continue
 
-        record = move_file(item_path, folder_path, config, logger=logger, notify=notify)
+        # notify=False aqui: notificação individual desligada em operação batch
+        record = move_file(item_path, folder_path, config, logger=logger, notify=False)
 
         if record:
             records.append(record)
@@ -430,6 +431,14 @@ def organize_folder(
     file_logger.info(
         f"ORGANIZAÇÃO: {folder_path} — {moved} movidos, {ignored} ignorados, {errors} erros"
     )
+
+    # UMA única notificação resumo no final
+    if notify and config.get("notifications_enabled") and moved > 0:
+        folder_name = os.path.basename(folder_path)
+        send_notification(
+            "Organização concluída",
+            f"{moved} arquivo(s) organizado(s) em {folder_name}/",
+        )
 
     return records
 
@@ -461,6 +470,7 @@ def load_undo_history() -> Optional[dict]:
 def undo_last_organization(
     logger: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
+    notify: bool = False,
 ) -> int:
     """
     Desfaz a última organização.
@@ -519,6 +529,13 @@ def undo_last_organization(
     if logger:
         logger(f"✨ Restauração concluída: {restored}/{total} arquivos.")
 
+    # UMA única notificação resumo
+    if notify and restored > 0:
+        send_notification(
+            "Desfazer concluído",
+            f"{restored} arquivo(s) restaurado(s) ao local original.",
+        )
+
     return restored
 
 
@@ -548,6 +565,7 @@ def find_duplicates(
     config: dict,
     logger: Optional[Callable] = None,
     progress_callback: Optional[Callable] = None,
+    notify: bool = False,
 ) -> list[dict]:
     """
     Detecta arquivos duplicados por hash MD5.
@@ -619,5 +637,12 @@ def find_duplicates(
 
     if logger:
         logger(f"✨ {len(records)} duplicado(s) movido(s) para Duplicados/.")
+
+    # UMA única notificação resumo
+    if notify and config.get("notifications_enabled") and records:
+        send_notification(
+            "Duplicados encontrados",
+            f"{len(records)} arquivo(s) duplicado(s) movido(s) para Duplicados/.",
+        )
 
     return records

@@ -1,32 +1,18 @@
 """
-organizador_gui.py — Interface gráfica completa do organizador de arquivos.
+organizador_gui.py — Interface gráfica moderna do organizador de arquivos.
 
-Funcionalidades:
-  1.  Selecionar pastas manualmente
-  2.  Categorias editáveis via config.json
-  3.  Modo simulação (dry-run)
-  4.  Histórico de ações em arquivo de log
-  5.  Desfazer última organização
-  6.  Ignorar arquivos específicos
-  7.  Organizar por data
-  8.  Detecção de duplicados
-  9.  Barra de progresso
-  10. Contadores no dashboard
-  11. Minimizar para bandeja
-  12. Preparado para empacotamento (.exe)
-  13. Notificações do sistema
-  14. Monitorar várias pastas
-  15. Regras personalizadas
+Usa customtkinter para visual moderno com cantos arredondados,
+sidebar de navegação e melhor experiência do usuário.
 """
 
 import os
-import sys
 import time
 import json
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog, simpledialog
-from datetime import datetime
+from tkinter import messagebox, filedialog
+
+import customtkinter as ctk
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -37,18 +23,92 @@ import core
 try:
     import pystray
     from PIL import Image, ImageDraw
+
     HAS_TRAY = True
 except ImportError:
     HAS_TRAY = False
+
+# ==========================================
+# TEMA E CORES
+# ==========================================
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+COLORS = {
+    "bg_dark": "#0c1017",
+    "bg_sidebar": "#111827",
+    "bg_card": "#161f2e",
+    "bg_card_hover": "#1c2940",
+    "bg_input": "#0d1520",
+    "border": "#1e293b",
+    "accent": "#3b82f6",
+    "accent_hover": "#2563eb",
+    "green": "#22c55e",
+    "green_dim": "#15803d",
+    "yellow": "#f59e0b",
+    "yellow_dim": "#b45309",
+    "red": "#ef4444",
+    "red_dim": "#b91c1c",
+    "purple": "#8b5cf6",
+    "cyan": "#06b6d4",
+    "text_primary": "#f1f5f9",
+    "text_secondary": "#94a3b8",
+    "text_muted": "#64748b",
+}
+
+
+# ==========================================
+# TOOLTIP
+# ==========================================
+class ToolTip:
+    """Tooltip leve para widgets."""
+
+    def __init__(self, widget, text: str, delay: int = 400):
+        self.widget = widget
+        self.text = text
+        self.delay = delay
+        self._tip_window = None
+        self._after_id = None
+        widget.bind("<Enter>", self._schedule)
+        widget.bind("<Leave>", self._hide)
+
+    def _schedule(self, event=None):
+        self._after_id = self.widget.after(self.delay, self._show)
+
+    def _show(self):
+        if self._tip_window:
+            return
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() // 2
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        self._tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tw.configure(bg="#1e293b")
+        label = tk.Label(
+            tw,
+            text=self.text,
+            bg="#1e293b",
+            fg="#e2e8f0",
+            font=("Segoe UI", 9),
+            padx=10,
+            pady=5,
+        )
+        label.pack()
+
+    def _hide(self, event=None):
+        if self._after_id:
+            self.widget.after_cancel(self._after_id)
+            self._after_id = None
+        if self._tip_window:
+            self._tip_window.destroy()
+            self._tip_window = None
 
 
 # ==========================================
 # HANDLER DO WATCHDOG
 # ==========================================
 class FolderHandler(FileSystemEventHandler):
-    """Monitora uma pasta e organiza arquivos novos automaticamente."""
-
-    def __init__(self, folder_path: str, config: dict, logger, notify: bool = True):
+    def __init__(self, folder_path, config, logger, notify=True):
         super().__init__()
         self.folder_path = folder_path
         self.config = config
@@ -71,335 +131,707 @@ class FolderHandler(FileSystemEventHandler):
 # ==========================================
 # APLICAÇÃO PRINCIPAL
 # ==========================================
-class FileOrganizerApp:
-    def __init__(self, root: tk.Tk):
-        self.root = root
-        self.root.title("Sortify")
-        self.root.geometry("1180x820")
-        self.root.minsize(1024, 720)
-        self.root.configure(bg="#0b1220")
+class FileOrganizerApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-        self.config = core.load_config()
+        self.title("Sortify")
+        self.geometry("1100x750")
+        self.minsize(900, 600)
+        self.configure(fg_color=COLORS["bg_dark"])
 
-        # Estado de monitoramento: {folder_path: Observer}
+        self.config_data = core.load_config()
+
+        # Estado
         self.observers: dict[str, Observer] = {}
         self.monitoring = False
-
-        # Contadores da sessão
         self.counter_moved = 0
         self.counter_ignored = 0
         self.counter_errors = 0
-
-        # Tray
         self.tray_icon = None
 
-        self._setup_style()
-        self._build_ui()
-        self._update_counter_display()
+        # Variáveis de UI
+        self.status_text = tk.StringVar(value="Parado")
+        self.progress_var = tk.DoubleVar(value=0)
+        self.date_var = tk.BooleanVar(value=self.config_data.get("date_subfolder", False))
+
+        # Páginas
+        self.pages: dict[str, ctk.CTkFrame] = {}
+        self.current_page = None
+        self.nav_buttons: dict[str, ctk.CTkButton] = {}
+
+        self._build_layout()
+        self._show_page("dashboard")
 
     # ──────────────────────────────────────
-    # ESTILOS
+    # LAYOUT PRINCIPAL
     # ──────────────────────────────────────
-    def _setup_style(self):
-        s = ttk.Style()
-        s.theme_use("clam")
+    def _build_layout(self):
+        # Grid: sidebar (fixo) + conteúdo (expande)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        bg_main = "#0b1220"
-        bg_card = "#111b2e"
-        bg_card_soft = "#17243d"
-        fg_title = "#f3f6ff"
-        fg_sub = "#9db0ce"
-        fg_body = "#c9d6ec"
-        accent = "#4f8cff"
-        purple = "#7c3aed"
-        green = "#10b981"
+        self._build_sidebar()
+        self._build_content_area()
 
-        s.configure("Main.TFrame", background=bg_main)
-        s.configure("Card.TFrame", background=bg_card, relief="flat", borderwidth=0)
-        s.configure("SoftCard.TFrame", background=bg_card_soft, relief="flat", borderwidth=0)
-
-        s.configure("Header.TLabel", background=bg_main, foreground=fg_title,
-                     font=("Segoe UI", 42, "bold"))
-        s.configure("SubHeader.TLabel", background=bg_main, foreground=fg_sub,
-                     font=("Segoe UI", 12))
-        s.configure("CardTitle.TLabel", background=bg_card, foreground=fg_title,
-                     font=("Segoe UI", 14, "bold"))
-        s.configure("CardText.TLabel", background=bg_card, foreground=fg_body,
-                     font=("Segoe UI", 11))
-        s.configure("Status.TLabel", background=bg_card, foreground=accent,
-                     font=("Segoe UI", 12, "bold"))
-        s.configure("CounterValue.TLabel", background=bg_card, foreground=fg_title,
-                     font=("Segoe UI", 24, "bold"))
-        s.configure("CounterLabel.TLabel", background=bg_card, foreground=fg_sub,
-                     font=("Segoe UI", 10))
-        s.configure("HeroTag.TLabel", background=bg_main, foreground=fg_sub,
-                    font=("Segoe UI", 20, "bold"))
-        s.configure("HeroGreen.TLabel", background=bg_main, foreground=green,
-                    font=("Segoe UI", 17, "bold"))
-        s.configure("HeroBlue.TLabel", background=bg_main, foreground=accent,
-                    font=("Segoe UI", 17, "bold"))
-        s.configure("HeroPurple.TLabel", background=bg_main, foreground=purple,
-                    font=("Segoe UI", 17, "bold"))
-        s.configure("HeroLight.TLabel", background=bg_main, foreground=fg_title,
-                    font=("Segoe UI", 17, "bold"))
-
-        for name, bg_color, bg_active in [
-            ("Primary.TButton",   "#2563eb", "#1d4ed8"),
-            ("Success.TButton",   "#16a34a", "#15803d"),
-            ("Danger.TButton",    "#dc2626", "#b91c1c"),
-            ("Secondary.TButton", "#243554", "#304668"),
-            ("Warning.TButton",   "#d97706", "#b45309"),
-            ("Info.TButton",      "#5b39d6", "#4f2ec4"),
-        ]:
-            s.configure(name, font=("Segoe UI", 10, "bold"), padding=9,
-                        background=bg_color, foreground="#ffffff")
-            s.map(name, background=[("active", bg_active)])
-
-        s.configure("Horizontal.TProgressbar",
-                    background="#2563eb", troughcolor="#17243d", thickness=8)
-
-    # ──────────────────────────────────────
-    # CONSTRUÇÃO DA UI
-    # ──────────────────────────────────────
-    def _build_ui(self):
-        # Container com scroll
-        canvas = tk.Canvas(self.root, bg="#0b1220", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
-        self.main = ttk.Frame(canvas, style="Main.TFrame", padding=24)
-        self.max_content_width = 1180
-
-        self.main.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    def _build_sidebar(self):
+        sidebar = ctk.CTkFrame(
+            self,
+            width=220,
+            corner_radius=0,
+            fg_color=COLORS["bg_sidebar"],
+            border_width=0,
         )
-        self.main_window = canvas.create_window((0, 0), window=self.main, anchor="n")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar.grid_propagate(False)
 
-        def _resize_main_container(event):
-            """Mantém conteúdo centralizado e responsivo sem criar espaço lateral."""
-            available_width = max(event.width - 24, 720)
-            content_width = min(available_width, self.max_content_width)
-            canvas.itemconfigure(self.main_window, width=content_width)
-            canvas.coords(self.main_window, event.width / 2, 0)
+        # Logo / Branding
+        brand = ctk.CTkFrame(sidebar, fg_color="transparent")
+        brand.pack(fill="x", padx=20, pady=(28, 8))
 
-        canvas.bind("<Configure>", _resize_main_container)
+        ctk.CTkLabel(
+            brand,
+            text="⚡ Sortify",
+            font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(anchor="w")
 
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        ctk.CTkLabel(
+            brand,
+            text="Organizador de Arquivos",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w", pady=(2, 0))
 
-        # Bind mousewheel
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Separador
+        sep = ctk.CTkFrame(sidebar, height=1, fg_color=COLORS["border"])
+        sep.pack(fill="x", padx=20, pady=(20, 16))
 
-        self._build_hero()
-        self._build_counters()
-        self._build_actions_row1()
-        self._build_actions_row2()
-        self._build_monitored_folders()
-        self._build_progress()
-        self._build_logs()
-
-    def _build_hero(self):
-        frame = ttk.Frame(self.main, style="Main.TFrame")
-        frame.pack(fill="x", pady=(0, 18))
-
-        left = ttk.Frame(frame, style="Main.TFrame")
-        left.pack(side="left", fill="x", expand=True)
-
-        icon = tk.Canvas(left, width=190, height=140, bg="#0b1220", highlightthickness=0)
-        icon.pack(side="left", padx=(0, 14))
-        icon.create_rectangle(18, 38, 165, 116, outline="", fill="#1d4ed8")
-        icon.create_rectangle(24, 48, 171, 122, outline="", fill="#2563eb")
-        icon.create_rectangle(48, 46, 97, 66, outline="", fill="#3b82f6")
-        icon.create_line(86, 89, 118, 109, 160, 63, fill="#f8fafc", width=12, smooth=True)
-
-        title_box = ttk.Frame(left, style="Main.TFrame")
-        title_box.pack(side="left", fill="y")
-        ttk.Label(title_box, text="Sortify", style="Header.TLabel").pack(anchor="w")
-
-        subtitle = ttk.Frame(title_box, style="Main.TFrame")
-        subtitle.pack(anchor="w", pady=(2, 0))
-        ttk.Label(subtitle, text="Organiza.", style="HeroGreen.TLabel").pack(side="left")
-        ttk.Label(subtitle, text=" Simplifica.", style="HeroBlue.TLabel").pack(side="left")
-        ttk.Label(subtitle, text=" Liberta seu espaço.", style="HeroLight.TLabel").pack(side="left")
-
-        badge = ttk.Frame(frame, style="SoftCard.TFrame", padding=14)
-        badge.pack(side="right")
-        ttk.Label(badge, text="Identidade visual atualizada", style="SubHeader.TLabel").pack(anchor="e")
-        ttk.Label(badge, text="Visual moderno + escuro", style="HeroTag.TLabel").pack(anchor="e")
-
-    def _build_counters(self):
-        """Cards de contadores: movidos, ignorados, erros, status."""
-        frame = ttk.Frame(self.main, style="Main.TFrame")
-        frame.pack(fill="x", pady=(0, 14))
-
-        for i in range(4):
-            frame.columnconfigure(i, weight=1)
-
-        data = [
-            ("Movidos", "counter_moved_var",   "#22c55e"),
-            ("Ignorados", "counter_ignored_var", "#f59e0b"),
-            ("Erros", "counter_errors_var",     "#ef4444"),
-            ("Status", "status_var",            "#38bdf8"),
+        # Navegação
+        nav_items = [
+            ("dashboard", "📊", "Dashboard"),
+            ("organize", "📁", "Organizar"),
+            ("monitor", "👁", "Monitorar"),
+            ("settings", "⚙️", "Configurações"),
+            ("logs", "📋", "Logs"),
         ]
 
-        for col, (label, var_name, color) in enumerate(data):
-            card = ttk.Frame(frame, style="Card.TFrame", padding=14)
-            padx = (0, 8) if col == 0 else (8, 0) if col == 3 else 8
-            card.grid(row=0, column=col, sticky="nsew", padx=padx)
+        for page_id, icon, label in nav_items:
+            btn = ctk.CTkButton(
+                sidebar,
+                text=f"  {icon}  {label}",
+                anchor="w",
+                height=42,
+                corner_radius=10,
+                font=ctk.CTkFont(size=13),
+                fg_color="transparent",
+                text_color=COLORS["text_secondary"],
+                hover_color=COLORS["bg_card"],
+                command=lambda pid=page_id: self._show_page(pid),
+            )
+            btn.pack(fill="x", padx=12, pady=2)
+            self.nav_buttons[page_id] = btn
 
-            if var_name == "status_var":
-                sv = tk.StringVar(value="Parado")
-                setattr(self, var_name, sv)
-                ttk.Label(card, textvariable=sv, style="Status.TLabel").pack(anchor="w")
+        # Spacer
+        spacer = ctk.CTkFrame(sidebar, fg_color="transparent")
+        spacer.pack(fill="both", expand=True)
+
+        # Status no rodapé da sidebar
+        status_frame = ctk.CTkFrame(sidebar, fg_color=COLORS["bg_card"], corner_radius=12)
+        status_frame.pack(fill="x", padx=16, pady=(0, 20))
+
+        status_inner = ctk.CTkFrame(status_frame, fg_color="transparent")
+        status_inner.pack(fill="x", padx=14, pady=12)
+
+        ctk.CTkLabel(
+            status_inner,
+            text="Status",
+            font=ctk.CTkFont(size=10),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w")
+
+        self.status_dot = ctk.CTkLabel(
+            status_inner,
+            text="●  ",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_muted"],
+        )
+        self.status_dot.pack(side="left", anchor="w", pady=(2, 0))
+
+        self.status_label = ctk.CTkLabel(
+            status_inner,
+            textvariable=self.status_text,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["text_secondary"],
+        )
+        self.status_label.pack(side="left", anchor="w", pady=(2, 0))
+
+    def _build_content_area(self):
+        self.content = ctk.CTkFrame(self, fg_color=COLORS["bg_dark"], corner_radius=0)
+        self.content.grid(row=0, column=1, sticky="nsew")
+        self.content.grid_columnconfigure(0, weight=1)
+        self.content.grid_rowconfigure(0, weight=1)
+
+        # Cria todas as páginas
+        self._create_dashboard_page()
+        self._create_organize_page()
+        self._create_monitor_page()
+        self._create_settings_page()
+        self._create_logs_page()
+
+    def _show_page(self, page_id: str):
+        # Esconde página atual
+        if self.current_page and self.current_page in self.pages:
+            self.pages[self.current_page].grid_remove()
+
+        # Atualiza botões da sidebar
+        for pid, btn in self.nav_buttons.items():
+            if pid == page_id:
+                btn.configure(
+                    fg_color=COLORS["accent"],
+                    text_color="#ffffff",
+                    hover_color=COLORS["accent_hover"],
+                )
             else:
-                sv = tk.StringVar(value="0")
-                setattr(self, var_name, sv)
-                lbl = ttk.Label(card, textvariable=sv, style="CounterValue.TLabel")
-                lbl.pack(anchor="w")
-                lbl.configure(foreground=color)
+                btn.configure(
+                    fg_color="transparent",
+                    text_color=COLORS["text_secondary"],
+                    hover_color=COLORS["bg_card"],
+                )
 
-            ttk.Label(card, text=label, style="CounterLabel.TLabel").pack(anchor="w", pady=(4, 0))
+        # Mostra nova página
+        self.pages[page_id].grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        self.current_page = page_id
 
-    def _build_actions_row1(self):
-        """Primeira fileira de botões: organizar, simular, desfazer."""
-        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
-        card.pack(fill="x", pady=(0, 10))
-
-        ttk.Label(card, text="Organização", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
-
-        bf = ttk.Frame(card, style="Card.TFrame")
-        bf.pack(fill="x")
-        for i in range(6):
-            bf.columnconfigure(i, weight=1)
-
-        ttk.Button(bf, text="📁 Downloads", style="Primary.TButton",
-                   command=self._organize_downloads).grid(row=0, column=0, padx=(0, 6), sticky="ew")
-
-        ttk.Button(bf, text="🖥️ Desktop", style="Primary.TButton",
-                   command=self._organize_desktop).grid(row=0, column=1, padx=6, sticky="ew")
-
-        ttk.Button(bf, text="📂 Outra pasta...", style="Info.TButton",
-                   command=self._organize_custom).grid(row=0, column=2, padx=6, sticky="ew")
-
-        ttk.Button(bf, text="🔍 Simular", style="Warning.TButton",
-                   command=self._simulate).grid(row=0, column=3, padx=6, sticky="ew")
-
-        ttk.Button(bf, text="⏪ Desfazer", style="Secondary.TButton",
-                   command=self._undo).grid(row=0, column=4, padx=6, sticky="ew")
-
-        ttk.Button(bf, text="📄 Duplicados", style="Secondary.TButton",
-                   command=self._find_duplicates).grid(row=0, column=5, padx=(6, 0), sticky="ew")
-
-    def _build_actions_row2(self):
-        """Segunda fileira: monitoramento, config, tray."""
-        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
-        card.pack(fill="x", pady=(0, 10))
-
-        ttk.Label(card, text="Monitoramento e Configuração", style="CardTitle.TLabel").pack(anchor="w", pady=(0, 10))
-
-        bf = ttk.Frame(card, style="Card.TFrame")
-        bf.pack(fill="x")
-        for i in range(5):
-            bf.columnconfigure(i, weight=1)
-
-        self.btn_start = ttk.Button(
-            bf, text="▶ Iniciar Monitor", style="Success.TButton",
-            command=self._start_monitoring,
+    # ──────────────────────────────────────
+    # HELPERS DE UI
+    # ──────────────────────────────────────
+    def _make_page(self, page_id: str) -> ctk.CTkScrollableFrame:
+        page = ctk.CTkScrollableFrame(
+            self.content,
+            fg_color=COLORS["bg_dark"],
+            corner_radius=0,
+            scrollbar_button_color=COLORS["bg_card"],
+            scrollbar_button_hover_color=COLORS["bg_card_hover"],
         )
-        self.btn_start.grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        self.pages[page_id] = page
+        return page
 
-        self.btn_stop = ttk.Button(
-            bf, text="■ Parar Monitor", style="Danger.TButton",
-            command=self._stop_monitoring, state="disabled",
+    def _make_card(self, parent, **kwargs) -> ctk.CTkFrame:
+        return ctk.CTkFrame(
+            parent,
+            fg_color=COLORS["bg_card"],
+            corner_radius=14,
+            border_width=1,
+            border_color=COLORS["border"],
+            **kwargs,
         )
-        self.btn_stop.grid(row=0, column=1, padx=6, sticky="ew")
 
-        ttk.Button(bf, text="⚙ Categorias", style="Secondary.TButton",
-                   command=self._edit_categories).grid(row=0, column=2, padx=6, sticky="ew")
+    def _make_section_title(self, parent, icon: str, title: str):
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame.pack(fill="x", padx=28, pady=(24, 12))
+        ctk.CTkLabel(
+            frame,
+            text=f"{icon}  {title}",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(anchor="w")
+        return frame
 
-        ttk.Button(bf, text="📏 Regras", style="Secondary.TButton",
-                   command=self._edit_rules).grid(row=0, column=3, padx=6, sticky="ew")
+    def _make_action_button(
+        self, parent, text, command, color=None, hover=None, icon_text=None, tooltip=None, width=None
+    ):
+        fg = color or COLORS["accent"]
+        hv = hover or COLORS["accent_hover"]
+        display = f"{icon_text}  {text}" if icon_text else text
+        btn = ctk.CTkButton(
+            parent,
+            text=display,
+            command=command,
+            fg_color=fg,
+            hover_color=hv,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            width=width or 0,
+        )
+        if tooltip:
+            ToolTip(btn, tooltip)
+        return btn
 
-        # Checkbox organizar por data
-        self.date_var = tk.BooleanVar(value=self.config.get("date_subfolder", False))
-        date_cb = tk.Checkbutton(
-            bf, text="📅 Sub-pastas por data", variable=self.date_var,
+    # ──────────────────────────────────────
+    # PÁGINA: DASHBOARD
+    # ──────────────────────────────────────
+    def _create_dashboard_page(self):
+        page = self._make_page("dashboard")
+
+        # Cabeçalho
+        header = ctk.CTkFrame(page, fg_color="transparent")
+        header.pack(fill="x", padx=28, pady=(24, 6))
+        ctk.CTkLabel(
+            header,
+            text="Dashboard",
+            font=ctk.CTkFont(size=28, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            header,
+            text="Visão geral da sessão atual",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_muted"],
+        ).pack(side="left", padx=(14, 0), pady=(6, 0))
+
+        # Cards de contadores
+        cards_frame = ctk.CTkFrame(page, fg_color="transparent")
+        cards_frame.pack(fill="x", padx=28, pady=(16, 8))
+        for i in range(4):
+            cards_frame.columnconfigure(i, weight=1)
+
+        counter_configs = [
+            ("Movidos", "counter_moved_lbl", COLORS["green"], "Arquivos organizados nesta sessão"),
+            ("Ignorados", "counter_ignored_lbl", COLORS["yellow"], "Arquivos ignorados por extensão/nome"),
+            ("Erros", "counter_errors_lbl", COLORS["red"], "Erros ao mover arquivos"),
+            ("Status", "status_card_lbl", COLORS["cyan"], "Estado do monitoramento"),
+        ]
+
+        for col, (label, attr, color, tip) in enumerate(counter_configs):
+            card = self._make_card(cards_frame)
+            padx = (0, 6) if col == 0 else (6, 0) if col == 3 else 6
+            card.grid(row=0, column=col, sticky="nsew", padx=padx, pady=4)
+
+            inner = ctk.CTkFrame(card, fg_color="transparent")
+            inner.pack(fill="both", padx=18, pady=16)
+
+            # Indicador de cor
+            dot = ctk.CTkFrame(inner, width=8, height=8, corner_radius=4, fg_color=color)
+            dot.pack(anchor="w", pady=(0, 8))
+
+            ctk.CTkLabel(
+                inner,
+                text=label,
+                font=ctk.CTkFont(size=11),
+                text_color=COLORS["text_muted"],
+            ).pack(anchor="w")
+
+            if attr == "status_card_lbl":
+                lbl = ctk.CTkLabel(
+                    inner,
+                    textvariable=self.status_text,
+                    font=ctk.CTkFont(size=22, weight="bold"),
+                    text_color=color,
+                )
+            else:
+                lbl = ctk.CTkLabel(
+                    inner,
+                    text="0",
+                    font=ctk.CTkFont(size=28, weight="bold"),
+                    text_color=color,
+                )
+                setattr(self, attr, lbl)
+
+            lbl.pack(anchor="w", pady=(4, 0))
+            ToolTip(card, tip)
+
+        # Ações rápidas
+        self._make_section_title(page, "⚡", "Ações rápidas")
+
+        quick_card = self._make_card(page)
+        quick_card.pack(fill="x", padx=28, pady=(0, 8))
+
+        quick_inner = ctk.CTkFrame(quick_card, fg_color="transparent")
+        quick_inner.pack(fill="x", padx=18, pady=16)
+
+        btns_data = [
+            ("Downloads", self._organize_downloads, COLORS["accent"], COLORS["accent_hover"], "📥", "Organizar pasta Downloads"),
+            ("Desktop", self._organize_desktop, COLORS["accent"], COLORS["accent_hover"], "🖥️", "Organizar pasta Desktop"),
+            ("Outra pasta", self._organize_custom, COLORS["purple"], "#7c3aed", "📂", "Escolher pasta para organizar"),
+            ("Simular", self._simulate, COLORS["yellow_dim"], COLORS["yellow_dim"], "🔍", "Ver o que seria feito sem mover"),
+            ("Desfazer", self._undo, "#475569", "#374151", "⏪", "Reverter última organização"),
+            ("Duplicados", self._find_duplicates, "#475569", "#374151", "📄", "Encontrar e mover arquivos duplicados"),
+        ]
+
+        for i in range(len(btns_data)):
+            quick_inner.columnconfigure(i, weight=1)
+
+        for col, (text, cmd, fg, hv, icon, tip) in enumerate(btns_data):
+            btn = self._make_action_button(quick_inner, text, cmd, fg, hv, icon, tip)
+            padx = (0, 4) if col == 0 else (4, 0) if col == len(btns_data) - 1 else 4
+            btn.grid(row=0, column=col, sticky="ew", padx=padx)
+
+        # Progresso
+        self._make_section_title(page, "📊", "Progresso")
+
+        prog_card = self._make_card(page)
+        prog_card.pack(fill="x", padx=28, pady=(0, 8))
+
+        prog_inner = ctk.CTkFrame(prog_card, fg_color="transparent")
+        prog_inner.pack(fill="x", padx=18, pady=16)
+
+        self.progress_bar = ctk.CTkProgressBar(
+            prog_inner,
+            height=10,
+            corner_radius=5,
+            fg_color=COLORS["bg_input"],
+            progress_color=COLORS["accent"],
+            variable=self.progress_var,
+        )
+        self.progress_bar.pack(fill="x")
+        self.progress_bar.set(0)
+
+        self.progress_label = ctk.CTkLabel(
+            prog_inner,
+            text="Nenhuma tarefa em andamento",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_muted"],
+        )
+        self.progress_label.pack(anchor="w", pady=(8, 0))
+
+    # ──────────────────────────────────────
+    # PÁGINA: ORGANIZAR
+    # ──────────────────────────────────────
+    def _create_organize_page(self):
+        page = self._make_page("organize")
+
+        self._make_section_title(page, "📁", "Organizar Arquivos")
+
+        ctk.CTkLabel(
+            page,
+            text="Escolha uma pasta para organizar automaticamente por tipo de arquivo.",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w", padx=28, pady=(0, 16))
+
+        # Card principal
+        card = self._make_card(page)
+        card.pack(fill="x", padx=28, pady=(0, 12))
+
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="x", padx=20, pady=20)
+
+        # Pastas padrão
+        ctk.CTkLabel(
+            inner,
+            text="Pastas padrão",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(anchor="w", pady=(0, 10))
+
+        row1 = ctk.CTkFrame(inner, fg_color="transparent")
+        row1.pack(fill="x", pady=(0, 16))
+
+        btn_dl = self._make_action_button(
+            row1, "Organizar Downloads", self._organize_downloads,
+            icon_text="📥", tooltip="Organizar pasta Downloads", width=220
+        )
+        btn_dl.pack(side="left", padx=(0, 8))
+
+        btn_dt = self._make_action_button(
+            row1, "Organizar Desktop", self._organize_desktop,
+            icon_text="🖥️", tooltip="Organizar pasta Desktop", width=220
+        )
+        btn_dt.pack(side="left", padx=(0, 8))
+
+        # Separador
+        ctk.CTkFrame(inner, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=(0, 16))
+
+        # Pasta customizada
+        ctk.CTkLabel(
+            inner,
+            text="Pasta personalizada",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(anchor="w", pady=(0, 10))
+
+        custom_row = ctk.CTkFrame(inner, fg_color="transparent")
+        custom_row.pack(fill="x", pady=(0, 12))
+
+        self._make_action_button(
+            custom_row, "Escolher pasta...", self._organize_custom,
+            COLORS["purple"], "#7c3aed", "📂",
+            "Selecionar qualquer pasta para organizar", width=200
+        ).pack(side="left", padx=(0, 8))
+
+        self._make_action_button(
+            custom_row, "Simular primeiro", self._simulate,
+            COLORS["yellow_dim"], "#92400e", "🔍",
+            "Visualizar ações antes de executar", width=200
+        ).pack(side="left", padx=(0, 8))
+
+        # Separador
+        ctk.CTkFrame(inner, height=1, fg_color=COLORS["border"]).pack(fill="x", pady=(0, 16))
+
+        # Opções
+        ctk.CTkLabel(
+            inner,
+            text="Opções",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(anchor="w", pady=(0, 10))
+
+        opts = ctk.CTkFrame(inner, fg_color="transparent")
+        opts.pack(fill="x")
+
+        date_switch = ctk.CTkSwitch(
+            opts,
+            text="  Criar sub-pastas por data (Ano/Mês)",
+            variable=self.date_var,
             command=self._toggle_date_mode,
-            bg="#111b2e", fg="#c9d6ec", selectcolor="#243554",
-            activebackground="#111b2e", activeforeground="#c9d6ec",
-            font=("Segoe UI", 10), anchor="w",
+            font=ctk.CTkFont(size=12),
+            progress_color=COLORS["accent"],
         )
-        date_cb.grid(row=0, column=4, padx=(6, 0), sticky="ew")
+        date_switch.pack(anchor="w", pady=4)
+        ToolTip(date_switch, "Cria sub-pastas como PDFs/2026/04-Abril/")
 
-    def _build_monitored_folders(self):
-        """Lista de pastas sendo monitoradas."""
-        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
-        card.pack(fill="x", pady=(0, 10))
+        # Card de ferramentas
+        tools_title = self._make_section_title(page, "🛠️", "Ferramentas")
 
-        top = ttk.Frame(card, style="Card.TFrame")
-        top.pack(fill="x", pady=(0, 8))
+        tools_card = self._make_card(page)
+        tools_card.pack(fill="x", padx=28, pady=(0, 12))
 
-        ttk.Label(top, text="Pastas monitoradas", style="CardTitle.TLabel").pack(side="left")
+        tools_inner = ctk.CTkFrame(tools_card, fg_color="transparent")
+        tools_inner.pack(fill="x", padx=20, pady=20)
 
-        ttk.Button(top, text="+ Adicionar", style="Info.TButton",
-                   command=self._add_monitored_folder).pack(side="right", padx=(8, 0))
-        ttk.Button(top, text="- Remover", style="Danger.TButton",
-                   command=self._remove_monitored_folder).pack(side="right")
+        tools_row = ctk.CTkFrame(tools_inner, fg_color="transparent")
+        tools_row.pack(fill="x")
+
+        self._make_action_button(
+            tools_row, "Buscar duplicados", self._find_duplicates,
+            "#475569", "#374151", "📄",
+            "Encontrar e mover arquivos duplicados por hash MD5", width=200
+        ).pack(side="left", padx=(0, 8))
+
+        self._make_action_button(
+            tools_row, "Desfazer última organização", self._undo,
+            COLORS["red_dim"], "#991b1b", "⏪",
+            "Reverter todos os arquivos da última organização", width=260
+        ).pack(side="left")
+
+    # ──────────────────────────────────────
+    # PÁGINA: MONITORAR
+    # ──────────────────────────────────────
+    def _create_monitor_page(self):
+        page = self._make_page("monitor")
+
+        self._make_section_title(page, "👁", "Monitoramento em Tempo Real")
+
+        ctk.CTkLabel(
+            page,
+            text="Monitore pastas e organize novos arquivos automaticamente.",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w", padx=28, pady=(0, 16))
+
+        # Controles
+        ctrl_card = self._make_card(page)
+        ctrl_card.pack(fill="x", padx=28, pady=(0, 12))
+
+        ctrl_inner = ctk.CTkFrame(ctrl_card, fg_color="transparent")
+        ctrl_inner.pack(fill="x", padx=20, pady=16)
+
+        ctrl_row = ctk.CTkFrame(ctrl_inner, fg_color="transparent")
+        ctrl_row.pack(fill="x")
+
+        self.btn_start = self._make_action_button(
+            ctrl_row, "Iniciar monitoramento", self._start_monitoring,
+            COLORS["green"], COLORS["green_dim"], "▶",
+            "Começar a monitorar as pastas da lista", width=220
+        )
+        self.btn_start.pack(side="left", padx=(0, 8))
+
+        self.btn_stop = self._make_action_button(
+            ctrl_row, "Parar monitoramento", self._stop_monitoring,
+            COLORS["red"], COLORS["red_dim"], "■",
+            "Parar todo o monitoramento", width=220
+        )
+        self.btn_stop.pack(side="left")
+        self.btn_stop.configure(state="disabled")
+
+        # Lista de pastas
+        folders_title = self._make_section_title(page, "📂", "Pastas monitoradas")
+
+        # Botões de adicionar/remover
+        folder_actions = ctk.CTkFrame(page, fg_color="transparent")
+        folder_actions.pack(fill="x", padx=28, pady=(0, 8))
+
+        self._make_action_button(
+            folder_actions, "Adicionar pasta", self._add_monitored_folder,
+            COLORS["accent"], COLORS["accent_hover"], "+", width=180
+        ).pack(side="left", padx=(0, 8))
+
+        self._make_action_button(
+            folder_actions, "Remover selecionada", self._remove_monitored_folder,
+            COLORS["red_dim"], "#991b1b", "−", width=180
+        ).pack(side="left")
+
+        # Lista
+        list_card = self._make_card(page)
+        list_card.pack(fill="x", padx=28, pady=(0, 12))
+
+        list_inner = ctk.CTkFrame(list_card, fg_color="transparent")
+        list_inner.pack(fill="both", padx=4, pady=4)
 
         self.folders_listbox = tk.Listbox(
-            card, height=4, font=("Consolas", 10),
-            bg="#0a1427", fg="#e2e8f0", selectbackground="#2563eb",
-            relief="flat", borderwidth=0,
+            list_inner,
+            height=6,
+            font=("Consolas", 11),
+            bg=COLORS["bg_input"],
+            fg=COLORS["text_primary"],
+            selectbackground=COLORS["accent"],
+            selectforeground="#ffffff",
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+            activestyle="none",
         )
-        self.folders_listbox.pack(fill="x")
+        self.folders_listbox.pack(fill="both", padx=10, pady=10)
 
-        # Popula com Downloads + Desktop + salvas
+        # Popula pastas
         default_folders = [core.DOWNLOADS_PATH, core.DESKTOP_PATH]
-        saved = self.config.get("monitored_folders", [])
+        saved = self.config_data.get("monitored_folders", [])
         all_folders = list(dict.fromkeys(default_folders + saved))
-
         for f in all_folders:
             self.folders_listbox.insert(tk.END, f)
 
-    def _build_progress(self):
-        """Barra de progresso."""
-        frame = ttk.Frame(self.main, style="Main.TFrame")
-        frame.pack(fill="x", pady=(0, 10))
+    # ──────────────────────────────────────
+    # PÁGINA: CONFIGURAÇÕES
+    # ──────────────────────────────────────
+    def _create_settings_page(self):
+        page = self._make_page("settings")
 
-        self.progress_var = tk.DoubleVar(value=0)
-        self.progress_bar = ttk.Progressbar(
-            frame, variable=self.progress_var,
-            maximum=100, style="Horizontal.TProgressbar",
+        self._make_section_title(page, "⚙️", "Configurações")
+
+        ctk.CTkLabel(
+            page,
+            text="Edite as categorias de extensão e regras personalizadas.",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w", padx=28, pady=(0, 16))
+
+        # Card: Categorias
+        cat_card = self._make_card(page)
+        cat_card.pack(fill="x", padx=28, pady=(0, 12))
+
+        cat_inner = ctk.CTkFrame(cat_card, fg_color="transparent")
+        cat_inner.pack(fill="x", padx=20, pady=18)
+
+        cat_header = ctk.CTkFrame(cat_inner, fg_color="transparent")
+        cat_header.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(
+            cat_header,
+            text="Categorias por extensão",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(side="left")
+
+        self._make_action_button(
+            cat_header, "Salvar categorias", self._save_categories,
+            COLORS["green"], COLORS["green_dim"], "💾", width=170
+        ).pack(side="right")
+
+        ctk.CTkLabel(
+            cat_inner,
+            text='Cada chave é o nome da pasta destino. O valor é a lista de extensões.',
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_muted"],
+        ).pack(anchor="w", pady=(0, 8))
+
+        self.cat_textbox = ctk.CTkTextbox(
+            cat_inner,
+            height=200,
+            font=ctk.CTkFont(family="Consolas", size=12),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["text_primary"],
+            corner_radius=10,
+            border_width=1,
+            border_color=COLORS["border"],
         )
-        self.progress_bar.pack(fill="x")
-
-        self.progress_label = ttk.Label(frame, text="", style="SubHeader.TLabel")
-        self.progress_label.pack(anchor="w", pady=(4, 0))
-
-    def _build_logs(self):
-        """Área de logs do sistema."""
-        card = ttk.Frame(self.main, style="Card.TFrame", padding=14)
-        card.pack(fill="both", expand=True)
-
-        top = ttk.Frame(card, style="Card.TFrame")
-        top.pack(fill="x", pady=(0, 8))
-
-        ttk.Label(top, text="Logs do sistema", style="CardTitle.TLabel").pack(side="left")
-
-        ttk.Button(top, text="Limpar", style="Secondary.TButton",
-                   command=self._clear_logs).pack(side="right")
-
-        self.log_text = scrolledtext.ScrolledText(
-            card, wrap=tk.WORD, font=("Consolas", 10),
-            bg="#0a1427", fg="#e2e8f0", insertbackground="#e2e8f0",
-            relief="flat", borderwidth=0, height=10,
+        self.cat_textbox.pack(fill="x")
+        self.cat_textbox.insert(
+            "1.0",
+            json.dumps(self.config_data.get("categories", {}), indent=4, ensure_ascii=False),
         )
-        self.log_text.pack(fill="both", expand=True)
+
+        # Card: Regras
+        rules_card = self._make_card(page)
+        rules_card.pack(fill="x", padx=28, pady=(0, 12))
+
+        rules_inner = ctk.CTkFrame(rules_card, fg_color="transparent")
+        rules_inner.pack(fill="x", padx=20, pady=18)
+
+        rules_header = ctk.CTkFrame(rules_inner, fg_color="transparent")
+        rules_header.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(
+            rules_header,
+            text="Regras personalizadas",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["text_primary"],
+        ).pack(side="left")
+
+        self._make_action_button(
+            rules_header, "Salvar regras", self._save_rules,
+            COLORS["green"], COLORS["green_dim"], "💾", width=160
+        ).pack(side="right")
+
+        ctk.CTkLabel(
+            rules_inner,
+            text="Regras são aplicadas ANTES das categorias. Condições: extension, name_contains, name_starts_with",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_muted"],
+            wraplength=600,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 8))
+
+        self.rules_textbox = ctk.CTkTextbox(
+            rules_inner,
+            height=180,
+            font=ctk.CTkFont(family="Consolas", size=12),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["text_primary"],
+            corner_radius=10,
+            border_width=1,
+            border_color=COLORS["border"],
+        )
+        self.rules_textbox.pack(fill="x")
+        self.rules_textbox.insert(
+            "1.0",
+            json.dumps(self.config_data.get("custom_rules", []), indent=4, ensure_ascii=False),
+        )
+
+    # ──────────────────────────────────────
+    # PÁGINA: LOGS
+    # ──────────────────────────────────────
+    def _create_logs_page(self):
+        page = self._make_page("logs")
+
+        title_frame = self._make_section_title(page, "📋", "Logs do Sistema")
+
+        self._make_action_button(
+            title_frame, "Limpar", self._clear_logs,
+            "#475569", "#374151", width=100
+        ).pack(side="right")
+
+        # Log area
+        log_card = self._make_card(page)
+        log_card.pack(fill="both", expand=True, padx=28, pady=(0, 16))
+
+        self.log_textbox = ctk.CTkTextbox(
+            log_card,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["text_primary"],
+            corner_radius=10,
+            border_width=0,
+            wrap="word",
+            activate_scrollbars=True,
+        )
+        self.log_textbox.pack(fill="both", expand=True, padx=8, pady=8)
+        self.log_textbox.configure(state="disabled")
 
         self.log("🚀 Sistema iniciado.")
-        self.log("💡 Use os botões acima para organizar seus arquivos.")
+        self.log("💡 Use a sidebar para navegar entre as seções.")
 
     # ──────────────────────────────────────
     # LOGGING
@@ -407,12 +839,17 @@ class FileOrganizerApp:
     def log(self, message: str):
         def _append():
             t = time.strftime("%H:%M:%S")
-            self.log_text.insert(tk.END, f"[{t}] {message}\n")
-            self.log_text.see(tk.END)
-        self.root.after(0, _append)
+            self.log_textbox.configure(state="normal")
+            self.log_textbox.insert("end", f"[{t}]  {message}\n")
+            self.log_textbox.see("end")
+            self.log_textbox.configure(state="disabled")
+
+        self.after(0, _append)
 
     def _clear_logs(self):
-        self.log_text.delete("1.0", tk.END)
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("1.0", "end")
+        self.log_textbox.configure(state="disabled")
 
     # ──────────────────────────────────────
     # PROGRESSO
@@ -420,26 +857,35 @@ class FileOrganizerApp:
     def _set_progress(self, current: int, total: int):
         if total <= 0:
             return
-        pct = (current / total) * 100
-        self.root.after(0, lambda: self.progress_var.set(pct))
-        self.root.after(0, lambda: self.progress_label.configure(
-            text=f"Processando {current}/{total} arquivos..."
-        ))
+        pct = current / total
+        self.after(0, lambda: self.progress_bar.set(pct))
+        self.after(
+            0,
+            lambda: self.progress_label.configure(
+                text=f"Processando {current}/{total} arquivos...",
+                text_color=COLORS["accent"],
+            ),
+        )
 
     def _reset_progress(self):
-        self.root.after(0, lambda: self.progress_var.set(0))
-        self.root.after(0, lambda: self.progress_label.configure(text=""))
+        self.after(0, lambda: self.progress_bar.set(0))
+        self.after(
+            0,
+            lambda: self.progress_label.configure(
+                text="Nenhuma tarefa em andamento",
+                text_color=COLORS["text_muted"],
+            ),
+        )
 
     # ──────────────────────────────────────
     # CONTADORES
     # ──────────────────────────────────────
     def _update_counter_display(self):
-        self.counter_moved_var.set(str(self.counter_moved))
-        self.counter_ignored_var.set(str(self.counter_ignored))
-        self.counter_errors_var.set(str(self.counter_errors))
+        self.counter_moved_lbl.configure(text=str(self.counter_moved))
+        self.counter_ignored_lbl.configure(text=str(self.counter_ignored))
+        self.counter_errors_lbl.configure(text=str(self.counter_errors))
 
     def _counting_logger(self, message: str):
-        """Logger que também atualiza contadores."""
         self.log(message)
         if message.startswith("✅"):
             self.counter_moved += 1
@@ -447,7 +893,7 @@ class FileOrganizerApp:
             self.counter_ignored += 1
         elif message.startswith("❌"):
             self.counter_errors += 1
-        self.root.after(0, self._update_counter_display)
+        self.after(0, self._update_counter_display)
 
     # ──────────────────────────────────────
     # ORGANIZAÇÃO
@@ -456,23 +902,27 @@ class FileOrganizerApp:
         def task():
             core.organize_folder(
                 folder_path,
-                self.config,
+                self.config_data,
                 logger=self._counting_logger,
                 progress_callback=self._set_progress,
-                notify=self.config.get("notifications_enabled", False),
+                notify=self.config_data.get("notifications_enabled", False),
             )
             self._reset_progress()
+
         threading.Thread(target=task, daemon=True).start()
 
     def _organize_downloads(self):
+        self._show_page("logs")
         self._organize_folder(core.DOWNLOADS_PATH)
 
     def _organize_desktop(self):
+        self._show_page("logs")
         self._organize_folder(core.DESKTOP_PATH)
 
     def _organize_custom(self):
         folder = filedialog.askdirectory(title="Selecionar pasta para organizar")
         if folder:
+            self._show_page("logs")
             self._organize_folder(folder)
 
     # ──────────────────────────────────────
@@ -483,14 +933,15 @@ class FileOrganizerApp:
         if not folder:
             return
 
+        self._show_page("logs")
+
         def task():
             self.log(f"🔍 Simulação para: {folder}")
-            actions = core.simulate_organization(folder, self.config, logger=self.log)
+            actions = core.simulate_organization(folder, self.config_data, logger=self.log)
             if not actions:
                 self.log("📭 Nenhum arquivo para organizar nesta pasta.")
                 return
-            # Pergunta se quer executar
-            self.root.after(0, lambda: self._confirm_simulation(folder, actions))
+            self.after(0, lambda: self._confirm_simulation(folder, actions))
 
         threading.Thread(target=task, daemon=True).start()
 
@@ -515,17 +966,18 @@ class FileOrganizerApp:
         ts = history.get("timestamp", "")
         resp = messagebox.askyesno(
             "Desfazer",
-            f"Desfazer última organização?\n\n"
-            f"Data: {ts}\n"
-            f"Arquivos: {n}",
+            f"Desfazer última organização?\n\nData: {ts}\nArquivos: {n}",
         )
         if not resp:
             return
+
+        self._show_page("logs")
 
         def task():
             core.undo_last_organization(
                 logger=self.log,
                 progress_callback=self._set_progress,
+                notify=self.config_data.get("notifications_enabled", False),
             )
             self._reset_progress()
 
@@ -539,11 +991,15 @@ class FileOrganizerApp:
         if not folder:
             return
 
+        self._show_page("logs")
+
         def task():
             core.find_duplicates(
-                folder, self.config,
+                folder,
+                self.config_data,
                 logger=self._counting_logger,
                 progress_callback=self._set_progress,
+                notify=True,
             )
             self._reset_progress()
 
@@ -571,7 +1027,7 @@ class FileOrganizerApp:
                 self.log(f"⚠️ Pasta não encontrada: {folder}")
                 continue
 
-            handler = FolderHandler(folder, self.config, self._counting_logger, notify=True)
+            handler = FolderHandler(folder, self.config_data, self._counting_logger, notify=True)
             obs = Observer()
             obs.schedule(handler, folder, recursive=False)
             obs.start()
@@ -581,9 +1037,11 @@ class FileOrganizerApp:
 
         if started > 0:
             self.monitoring = True
-            self.status_var.set(f"Monitorando ({started})")
-            self.btn_start.config(state="disabled")
-            self.btn_stop.config(state="normal")
+            self.status_text.set(f"Monitorando ({started})")
+            self.status_dot.configure(text_color=COLORS["green"])
+            self.status_label.configure(text_color=COLORS["green"])
+            self.btn_start.configure(state="disabled")
+            self.btn_stop.configure(state="normal")
         else:
             messagebox.showerror("Erro", "Nenhuma pasta válida para monitorar.")
 
@@ -600,20 +1058,21 @@ class FileOrganizerApp:
 
         self.observers.clear()
         self.monitoring = False
-        self.status_var.set("Parado")
-        self.btn_start.config(state="normal")
-        self.btn_stop.config(state="disabled")
+        self.status_text.set("Parado")
+        self.status_dot.configure(text_color=COLORS["text_muted"])
+        self.status_label.configure(text_color=COLORS["text_secondary"])
+        self.btn_start.configure(state="normal")
+        self.btn_stop.configure(state="disabled")
         self.log("🛑 Monitoramento encerrado.")
 
     def _add_monitored_folder(self):
         folder = filedialog.askdirectory(title="Adicionar pasta para monitorar")
         if folder and folder not in self._get_monitored_folders():
             self.folders_listbox.insert(tk.END, folder)
-            # Salva no config
-            saved = self.config.get("monitored_folders", [])
+            saved = self.config_data.get("monitored_folders", [])
             saved.append(folder)
-            self.config["monitored_folders"] = saved
-            core.save_config(self.config)
+            self.config_data["monitored_folders"] = saved
+            core.save_config(self.config_data)
             self.log(f"➕ Pasta adicionada: {folder}")
 
     def _remove_monitored_folder(self):
@@ -624,152 +1083,81 @@ class FileOrganizerApp:
         idx = sel[0]
         folder = self.folders_listbox.get(idx)
         self.folders_listbox.delete(idx)
-        # Remove do config
-        saved = self.config.get("monitored_folders", [])
+        saved = self.config_data.get("monitored_folders", [])
         if folder in saved:
             saved.remove(folder)
-            self.config["monitored_folders"] = saved
-            core.save_config(self.config)
+            self.config_data["monitored_folders"] = saved
+            core.save_config(self.config_data)
         self.log(f"➖ Pasta removida: {folder}")
 
     # ──────────────────────────────────────
     # TOGGLE DATA
     # ──────────────────────────────────────
     def _toggle_date_mode(self):
-        self.config["date_subfolder"] = self.date_var.get()
-        core.save_config(self.config)
+        self.config_data["date_subfolder"] = self.date_var.get()
+        core.save_config(self.config_data)
         state = "ativada" if self.date_var.get() else "desativada"
         self.log(f"📅 Organização por data: {state}")
 
     # ──────────────────────────────────────
-    # EDITOR DE CATEGORIAS
+    # SALVAR CATEGORIAS / REGRAS
     # ──────────────────────────────────────
-    def _edit_categories(self):
-        win = tk.Toplevel(self.root)
-        win.title("Editar categorias")
-        win.geometry("600x500")
-        win.configure(bg="#0f172a")
-        win.transient(self.root)
-        win.grab_set()
+    def _save_categories(self):
+        try:
+            text = self.cat_textbox.get("1.0", "end")
+            new_cats = json.loads(text)
+            self.config_data["categories"] = new_cats
+            core.save_config(self.config_data)
+            self.log("✅ Categorias atualizadas.")
+            messagebox.showinfo("Sucesso", "Categorias salvas com sucesso!")
+        except json.JSONDecodeError as e:
+            messagebox.showerror("JSON inválido", f"Erro de sintaxe:\n{e}")
 
-        ttk.Label(win, text="Categorias (config.json)", style="Header.TLabel").pack(
-            anchor="w", padx=16, pady=(16, 4))
-
-        ttk.Label(
-            win,
-            text="Edite o JSON abaixo. Cada chave é o nome da pasta e o valor é a lista de extensões.",
-            style="SubHeader.TLabel",
-        ).pack(anchor="w", padx=16, pady=(0, 10))
-
-        text = scrolledtext.ScrolledText(
-            win, wrap=tk.WORD, font=("Consolas", 11),
-            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
-            relief="flat", borderwidth=0,
-        )
-        text.pack(fill="both", expand=True, padx=16, pady=(0, 10))
-        text.insert("1.0", json.dumps(self.config.get("categories", {}), indent=4, ensure_ascii=False))
-
-        def save():
-            try:
-                new_cats = json.loads(text.get("1.0", tk.END))
-                self.config["categories"] = new_cats
-                core.save_config(self.config)
-                self.log("✅ Categorias atualizadas.")
-                win.destroy()
-            except json.JSONDecodeError as e:
-                messagebox.showerror("JSON inválido", f"Erro de sintaxe:\n{e}", parent=win)
-
-        btn_frame = ttk.Frame(win, style="Main.TFrame")
-        btn_frame.pack(fill="x", padx=16, pady=(0, 16))
-        ttk.Button(btn_frame, text="Salvar", style="Success.TButton", command=save).pack(side="right")
-        ttk.Button(btn_frame, text="Cancelar", style="Secondary.TButton",
-                   command=win.destroy).pack(side="right", padx=(0, 8))
-
-    # ──────────────────────────────────────
-    # EDITOR DE REGRAS
-    # ──────────────────────────────────────
-    def _edit_rules(self):
-        win = tk.Toplevel(self.root)
-        win.title("Regras personalizadas")
-        win.geometry("650x550")
-        win.configure(bg="#0f172a")
-        win.transient(self.root)
-        win.grab_set()
-
-        ttk.Label(win, text="Regras personalizadas", style="Header.TLabel").pack(
-            anchor="w", padx=16, pady=(16, 4))
-
-        ttk.Label(
-            win,
-            text=(
-                "Regras são aplicadas ANTES das categorias por extensão.\n"
-                "Condições possíveis: extension, name_contains, name_starts_with\n"
-                'Exemplo: {"name": "Notas", "conditions": {"extension": ".pdf", "name_contains": "nota"}, "destination": "Notas Fiscais"}'
-            ),
-            style="SubHeader.TLabel",
-        ).pack(anchor="w", padx=16, pady=(0, 10))
-
-        text = scrolledtext.ScrolledText(
-            win, wrap=tk.WORD, font=("Consolas", 11),
-            bg="#020617", fg="#e2e8f0", insertbackground="#e2e8f0",
-            relief="flat", borderwidth=0,
-        )
-        text.pack(fill="both", expand=True, padx=16, pady=(0, 10))
-        text.insert("1.0", json.dumps(
-            self.config.get("custom_rules", []), indent=4, ensure_ascii=False
-        ))
-
-        def save():
-            try:
-                new_rules = json.loads(text.get("1.0", tk.END))
-                if not isinstance(new_rules, list):
-                    raise ValueError("O JSON precisa ser uma lista [].")
-                self.config["custom_rules"] = new_rules
-                core.save_config(self.config)
-                self.log(f"✅ {len(new_rules)} regra(s) salva(s).")
-                win.destroy()
-            except (json.JSONDecodeError, ValueError) as e:
-                messagebox.showerror("Erro", str(e), parent=win)
-
-        btn_frame = ttk.Frame(win, style="Main.TFrame")
-        btn_frame.pack(fill="x", padx=16, pady=(0, 16))
-        ttk.Button(btn_frame, text="Salvar", style="Success.TButton", command=save).pack(side="right")
-        ttk.Button(btn_frame, text="Cancelar", style="Secondary.TButton",
-                   command=win.destroy).pack(side="right", padx=(0, 8))
+    def _save_rules(self):
+        try:
+            text = self.rules_textbox.get("1.0", "end")
+            new_rules = json.loads(text)
+            if not isinstance(new_rules, list):
+                raise ValueError("O JSON precisa ser uma lista [].")
+            self.config_data["custom_rules"] = new_rules
+            core.save_config(self.config_data)
+            self.log(f"✅ {len(new_rules)} regra(s) salva(s).")
+            messagebox.showinfo("Sucesso", f"{len(new_rules)} regra(s) salva(s)!")
+        except (json.JSONDecodeError, ValueError) as e:
+            messagebox.showerror("Erro", str(e))
 
     # ──────────────────────────────────────
     # SYSTEM TRAY
     # ──────────────────────────────────────
     def _minimize_to_tray(self):
         if not HAS_TRAY:
-            self.root.iconify()
+            self.iconify()
             return
 
-        self.root.withdraw()
+        self.withdraw()
 
-        image = Image.new("RGB", (64, 64), "#2563eb")
+        image = Image.new("RGB", (64, 64), COLORS["accent"])
         draw = ImageDraw.Draw(image)
-        draw.rectangle([16, 16, 48, 48], fill="#ffffff")
-        draw.rectangle([20, 20, 44, 44], fill="#2563eb")
+        draw.rounded_rectangle([12, 12, 52, 52], radius=8, fill="#ffffff")
+        draw.rounded_rectangle([18, 18, 46, 46], radius=4, fill=COLORS["accent"])
 
         menu = pystray.Menu(
             pystray.MenuItem("Abrir", self._restore_from_tray),
             pystray.MenuItem("Sair", self._quit_from_tray),
         )
-
-        self.tray_icon = pystray.Icon("organizador", image, "Organizador de Arquivos", menu)
+        self.tray_icon = pystray.Icon("sortify", image, "Sortify", menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
 
     def _restore_from_tray(self, icon=None, item=None):
         if self.tray_icon:
             self.tray_icon.stop()
             self.tray_icon = None
-        self.root.after(0, self.root.deiconify)
+        self.after(0, self.deiconify)
 
     def _quit_from_tray(self, icon=None, item=None):
         if self.tray_icon:
             self.tray_icon.stop()
-        self.root.after(0, self.on_close)
+        self.after(0, self.on_close)
 
     # ──────────────────────────────────────
     # ENCERRAMENTO
@@ -779,25 +1167,23 @@ class FileOrganizerApp:
             self._stop_monitoring()
         if self.tray_icon:
             self.tray_icon.stop()
-        self.root.destroy()
+        self.destroy()
 
 
 # ==========================================
 # MAIN
 # ==========================================
 def main():
-    root = tk.Tk()
-    app = FileOrganizerApp(root)
+    app = FileOrganizerApp()
 
-    # Minimizar para tray via botão fechar (se habilitado no config)
     def handle_close():
-        if app.config.get("minimize_to_tray") and HAS_TRAY:
+        if app.config_data.get("minimize_to_tray") and HAS_TRAY:
             app._minimize_to_tray()
         else:
             app.on_close()
 
-    root.protocol("WM_DELETE_WINDOW", handle_close)
-    root.mainloop()
+    app.protocol("WM_DELETE_WINDOW", handle_close)
+    app.mainloop()
 
 
 if __name__ == "__main__":
