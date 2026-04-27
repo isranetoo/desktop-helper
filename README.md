@@ -151,3 +151,14 @@ O executável será gerado em `dist/`.
 ## Licenca
 
 Projeto licenciado sob MIT. Veja `LICENSE` para mais detalhes.
+
+## Documentação com MkDocs
+
+Este repositório agora inclui documentação em `docs/` com configuração em `mkdocs.yml` e deploy automático para GitHub Pages em `.github/workflows/docs.yml`.
+
+### Rodar localmente
+
+```bash
+pip install mkdocs mkdocs-material
+mkdocs serve
+```
