@@ -34,6 +34,7 @@ nav:
   - Automações: automacoes-e-monitoramento.md
   - Exemplos: exemplos.md
   - Arquitetura: arquitetura.md
+  - Empacotamento e Releases: empacotamento-e-releases.md
   - Deploy docs: deploy-github-pages.md
   - Solução de problemas: solucao-de-problemas.md
 

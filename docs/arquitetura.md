@@ -12,6 +12,10 @@ desktop-helper/
 ├── locale/
 ├── tests/
 ├── build.bat
+├── scripts/
+│   ├── build.py
+│   ├── build_linux.sh
+│   └── build_macos.sh
 ├── config.json
 ├── core.py
 ├── i18n.py
@@ -35,6 +39,7 @@ desktop-helper/
 | `config.json` | Fonte principal de comportamento do app |
 | `tests/` | Garantia de comportamento para o núcleo |
 | `mkdocs.yml` + `docs/` | Camada de documentação e publicação |
+| `scripts/build.py` | Empacotamento multiplataforma por SO alvo |
 
 ## Fluxo De Execução
 
