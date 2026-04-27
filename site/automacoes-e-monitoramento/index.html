@@ -1,0 +1,1629 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentação completa do Sortify, organizador de arquivos para Windows">
+      
+      
+      
+        <link rel="canonical" href="https://isranetoo.github.io/desktop-helper/automacoes-e-monitoramento/">
+      
+      
+        <link rel="prev" href="../configuracao/">
+      
+      
+        <link rel="next" href="../exemplos/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/sortify.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Automações - Sortify Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#automacoes-e-monitoramento" class="md-skip">
+          Pular para conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href=".." title="Sortify Docs" class="md-header__button md-logo" aria-label="Sortify Docs" data-md-component="logo">
+      
+  <img src="../assets/sortify.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Sortify Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Automações
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="amber"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando busca
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/isranetoo/desktop-helper" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    isranetoo/desktop-helper
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../guia-rapido/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Primeiros passos
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../interface-e-fluxos/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Interface e fluxos
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../configuracao/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuração
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Automações
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../exemplos/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Exemplos
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../arquitetura/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Arquitetura
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deploy-github-pages/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deploy docs
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../solucao-de-problemas/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Solução de problemas
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Sortify Docs" class="md-nav__button md-logo" aria-label="Sortify Docs" data-md-component="logo">
+      
+  <img src="../assets/sortify.png" alt="logo">
+
+    </a>
+    Sortify Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/isranetoo/desktop-helper" title="Ir para repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    isranetoo/desktop-helper
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Início
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guia-rapido/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primeiros passos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface-e-fluxos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface e fluxos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuracao/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuração
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automações
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automações
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#simulacao-antes-da-automacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulação Antes Da Automação
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Simulação Antes Da Automação">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#por-que-isso-importa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Por que isso importa
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoramento-em-tempo-real" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoramento Em Tempo Real
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monitoramento Em Tempo Real">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comportamento-atual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comportamento atual
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurando-pela-gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurando pela GUI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#situacoes-ideais-para-usar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Situações ideais para usar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agendamento-automatico" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agendamento Automático
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agendamento Automático">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modo-diario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modo diário
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modo-intervalo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modo intervalo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#como-pensar-a-escolha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Como pensar a escolha
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#undo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Undo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-o-undo-faz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que o undo faz
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-que-isso-permite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que isso permite
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#duplicados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Duplicados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comportamento-importante" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comportamento importante
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resultado-esperado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resultado esperado
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notificacoes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notificações
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Notificações">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#estrategia-atual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia atual
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bandeja-do-sistema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bandeja Do Sistema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#onde-aparecem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onde aparecem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-que-voce-costuma-ver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que você costuma ver
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estrategia-segura-para-ligar-tudo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia Segura Para Ligar Tudo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#padroes-de-uso-recomendados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Padrões De Uso Recomendados
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../exemplos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exemplos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../arquitetura/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitetura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy-github-pages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solucao-de-problemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solução de problemas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#simulacao-antes-da-automacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulação Antes Da Automação
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Simulação Antes Da Automação">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#por-que-isso-importa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Por que isso importa
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoramento-em-tempo-real" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoramento Em Tempo Real
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monitoramento Em Tempo Real">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comportamento-atual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comportamento atual
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configurando-pela-gui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurando pela GUI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#situacoes-ideais-para-usar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Situações ideais para usar
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agendamento-automatico" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agendamento Automático
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agendamento Automático">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modo-diario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modo diário
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modo-intervalo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modo intervalo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#como-pensar-a-escolha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Como pensar a escolha
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#undo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Undo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-o-undo-faz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que o undo faz
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-que-isso-permite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que isso permite
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#duplicados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Duplicados
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Duplicados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comportamento-importante" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comportamento importante
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resultado-esperado" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resultado esperado
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notificacoes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notificações
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Notificações">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#estrategia-atual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia atual
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bandeja-do-sistema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bandeja Do Sistema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#onde-aparecem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onde aparecem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-que-voce-costuma-ver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O que você costuma ver
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estrategia-segura-para-ligar-tudo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estratégia Segura Para Ligar Tudo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#padroes-de-uso-recomendados" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Padrões De Uso Recomendados
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="automacoes-e-monitoramento">Automações E Monitoramento<a class="headerlink" href="#automacoes-e-monitoramento" title="Permanent link">&para;</a></h1>
+<p>Esta é a parte da documentação que cobre o lado mais poderoso do Sortify: deixar a organização funcionando com pouca intervenção manual.</p>
+<h2 id="simulacao-antes-da-automacao">Simulação Antes Da Automação<a class="headerlink" href="#simulacao-antes-da-automacao" title="Permanent link">&para;</a></h2>
+<p>Antes de ativar qualquer rotina contínua, o melhor caminho é validar a lógica por simulação.</p>
+<p>Na prática, a simulação:</p>
+<ul>
+<li>percorre os arquivos da pasta;</li>
+<li>ignora itens temporários ou bloqueados pelas listas de exclusão;</li>
+<li>calcula o destino provável;</li>
+<li>registra as ações planejadas nos logs;</li>
+<li>não move nada.</li>
+</ul>
+<h3 id="por-que-isso-importa">Por que isso importa<a class="headerlink" href="#por-que-isso-importa" title="Permanent link">&para;</a></h3>
+<p>Em automação, o risco não está só em mover arquivos. O risco está em mover certo demais para a regra errada. A simulação reduz exatamente esse tipo de erro.</p>
+<h2 id="monitoramento-em-tempo-real">Monitoramento Em Tempo Real<a class="headerlink" href="#monitoramento-em-tempo-real" title="Permanent link">&para;</a></h2>
+<p>O monitoramento usa <code>watchdog</code> para observar pastas cadastradas e reagir quando novos arquivos aparecem.</p>
+<h3 id="comportamento-atual">Comportamento atual<a class="headerlink" href="#comportamento-atual" title="Permanent link">&para;</a></h3>
+<ul>
+<li>apenas novos arquivos criados são processados automaticamente;</li>
+<li>diretórios são ignorados;</li>
+<li>a rotina espera um pequeno intervalo antes de mover, ajudando em casos de arquivos ainda sendo gravados;</li>
+<li>cada arquivo usa o mesmo motor de regras do fluxo manual.</li>
+</ul>
+<h3 id="configurando-pela-gui">Configurando pela GUI<a class="headerlink" href="#configurando-pela-gui" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Abra <code>Monitorar</code>.</li>
+<li>Clique em <code>Adicionar pasta</code>.</li>
+<li>Escolha um diretório.</li>
+<li>Inicie o monitoramento.</li>
+<li>Acompanhe o status e os logs.</li>
+</ol>
+<h3 id="situacoes-ideais-para-usar">Situações ideais para usar<a class="headerlink" href="#situacoes-ideais-para-usar" title="Permanent link">&para;</a></h3>
+<ul>
+<li>pasta de <code>Downloads</code>;</li>
+<li>área de entrada de documentos;</li>
+<li>diretório que recebe anexos ou exportações de outros sistemas;</li>
+<li>fluxo pessoal de capturas de tela e PDFs.</li>
+</ul>
+<h2 id="agendamento-automatico">Agendamento Automático<a class="headerlink" href="#agendamento-automatico" title="Permanent link">&para;</a></h2>
+<p>Além do modo em tempo real, a aplicação possui scheduler próprio.</p>
+<h3 id="modo-diario">Modo diário<a class="headerlink" href="#modo-diario" title="Permanent link">&para;</a></h3>
+<p>Use quando você quer consolidar organização em um horário previsível, como no fim do expediente.</p>
+<p>Exemplo:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;scheduled_enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;scheduled_mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;daily&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">&quot;scheduled_time&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;18:00&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="modo-intervalo">Modo intervalo<a class="headerlink" href="#modo-intervalo" title="Permanent link">&para;</a></h3>
+<p>Use quando a pasta recebe arquivos ao longo do dia e você prefere rodadas periódicas.</p>
+<p>Exemplo:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;scheduled_enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;scheduled_mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;interval&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;scheduled_interval_minutes&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="como-pensar-a-escolha">Como pensar a escolha<a class="headerlink" href="#como-pensar-a-escolha" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Cenário</th>
+<th>Melhor modo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organização de fim de dia</td>
+<td><code>daily</code></td>
+</tr>
+<tr>
+<td>Caixa de entrada que enche o tempo todo</td>
+<td><code>interval</code></td>
+</tr>
+<tr>
+<td>Uso mais previsível e silencioso</td>
+<td><code>daily</code></td>
+</tr>
+<tr>
+<td>Uso operacional com atualização constante</td>
+<td><code>interval</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="undo">Undo<a class="headerlink" href="#undo" title="Permanent link">&para;</a></h2>
+<p>Toda organização bem automatizada precisa de reversão confiável. O Sortify salva um histórico com origem e destino dos arquivos movidos.</p>
+<h3 id="o-que-o-undo-faz">O que o undo faz<a class="headerlink" href="#o-que-o-undo-faz" title="Permanent link">&para;</a></h3>
+<ul>
+<li>recupera a última operação registrada;</li>
+<li>move os arquivos de volta em ordem reversa;</li>
+<li>limpa diretórios vazios criados pela organização;</li>
+<li>remove a entrada já desfeita da pilha.</li>
+</ul>
+<h3 id="o-que-isso-permite">O que isso permite<a class="headerlink" href="#o-que-isso-permite" title="Permanent link">&para;</a></h3>
+<ul>
+<li>testar novas regras com menos medo;</li>
+<li>organizar em etapas;</li>
+<li>corrigir execuções indesejadas sem refazer tudo manualmente.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Escopo do undo</p>
+<p>O desfazer atua sobre a última entrada salva no histórico. Se você fizer várias operações, a reversão também acontece em camadas, da mais recente para a mais antiga.</p>
+</div>
+<h2 id="duplicados">Duplicados<a class="headerlink" href="#duplicados" title="Permanent link">&para;</a></h2>
+<p>O recurso de duplicados percorre a árvore da pasta de forma recursiva e calcula hash MD5 para encontrar arquivos com conteúdo idêntico.</p>
+<h3 id="comportamento-importante">Comportamento importante<a class="headerlink" href="#comportamento-importante" title="Permanent link">&para;</a></h3>
+<ul>
+<li>a pasta <code>Duplicados/</code> é ignorada na própria varredura;</li>
+<li>diretórios como <code>logs</code>, <code>__pycache__</code> e <code>.git</code> também ficam de fora;</li>
+<li>somente os duplicados encontrados depois do primeiro arquivo igual são movidos.</li>
+</ul>
+<h3 id="resultado-esperado">Resultado esperado<a class="headerlink" href="#resultado-esperado" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>workspace/
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── foto-original.jpg
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── Duplicados/
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   └── copia-foto.jpg
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>└── documento.pdf
+</code></pre></div>
+<h2 id="notificacoes">Notificações<a class="headerlink" href="#notificacoes" title="Permanent link">&para;</a></h2>
+<p>As notificações dependem de <code>plyer</code>.</p>
+<h3 id="estrategia-atual">Estratégia atual<a class="headerlink" href="#estrategia-atual" title="Permanent link">&para;</a></h3>
+<ul>
+<li>no monitoramento em tempo real, a notificação pode acontecer por arquivo;</li>
+<li>na organização em lote, o sistema prefere notificação-resumo ao final;</li>
+<li>se a dependência não estiver instalada, o app continua funcionando sem quebrar o fluxo.</li>
+</ul>
+<h2 id="bandeja-do-sistema">Bandeja Do Sistema<a class="headerlink" href="#bandeja-do-sistema" title="Permanent link">&para;</a></h2>
+<p>Quando <code>minimize_to_tray</code> está ativo e as dependências opcionais estão disponíveis:</p>
+<ul>
+<li>fechar a janela pode minimizar para a bandeja;</li>
+<li>o usuário consegue restaurar a interface;</li>
+<li>a aplicação pode continuar ativa em segundo plano.</li>
+</ul>
+<p>Se <code>pystray</code> não estiver instalado, o app apenas minimiza ou fecha no fluxo padrão.</p>
+<h2 id="logs">Logs<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
+<p>Os logs são a base da observabilidade local do projeto.</p>
+<h3 id="onde-aparecem">Onde aparecem<a class="headerlink" href="#onde-aparecem" title="Permanent link">&para;</a></h3>
+<ul>
+<li>na tela <code>Logs</code> da GUI;</li>
+<li>em arquivos diários dentro de <code>logs/</code>.</li>
+</ul>
+<h3 id="o-que-voce-costuma-ver">O que você costuma ver<a class="headerlink" href="#o-que-voce-costuma-ver" title="Permanent link">&para;</a></h3>
+<ul>
+<li>início de organização;</li>
+<li>destino de cada arquivo movido;</li>
+<li>itens ignorados;</li>
+<li>erros de permissão;</li>
+<li>início e fim do scheduler;</li>
+<li>detecção de duplicados;</li>
+<li>execução do undo.</li>
+</ul>
+<h2 id="estrategia-segura-para-ligar-tudo">Estratégia Segura Para Ligar Tudo<a class="headerlink" href="#estrategia-segura-para-ligar-tudo" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Ajuste e revise <code>config.json</code>.</li>
+<li>Rode simulação.</li>
+<li>Execute organização manual.</li>
+<li>Teste o undo.</li>
+<li>Ative duplicados se fizer sentido para o seu caso.</li>
+<li>Ligue o monitoramento.</li>
+<li>Só depois adicione agendamento.</li>
+</ol>
+<h2 id="padroes-de-uso-recomendados">Padrões De Uso Recomendados<a class="headerlink" href="#padroes-de-uso-recomendados" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Perfil</th>
+<th>Estratégia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Usuário doméstico</td>
+<td>Simulação + organização manual + duplicados ocasionais</td>
+</tr>
+<tr>
+<td>Profissional com muitos PDFs</td>
+<td>Regras customizadas + monitoramento em pastas de entrada</td>
+</tr>
+<tr>
+<td>Operação contínua</td>
+<td>Pastas monitoradas + scheduler por intervalo</td>
+</tr>
+<tr>
+<td>Arquivo histórico</td>
+<td><code>date_subfolder</code> ligado + duplicados + logs frequentes</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar para o topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.instant", "navigation.instant.progress", "navigation.tracking", "search.highlight", "search.suggest", "toc.follow", "content.code.copy", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "mais 1 nesta p\u00e1gina", "search.result.more.other": "# mais nesta p\u00e1gina", "search.result.none": "Nenhum documento encontrado", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

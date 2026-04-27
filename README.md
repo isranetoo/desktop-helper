@@ -1,61 +1,62 @@
 <p align="center">
-    <img src="generated/icons/sortify.png" alt="Capa do Sortify" width="220">
+  <img src="icons/sortify.png" alt="Logo do Sortify" width="220">
 </p>
 
-# Sortify — Organizador de Arquivos
+<h1 align="center">Sortify</h1>
 
-O Sortify é um organizador de arquivos para Windows com interface gráfica moderna e versão em linha de comando. Ele monitora pastas como Downloads, Desktop ou qualquer diretório escolhido pelo usuário, identifica o tipo de cada arquivo e move automaticamente para categorias configuráveis, com suporte a regras personalizadas, detecção de duplicados, agendamento e desfazer.
+<p align="center">
+  Organizador de arquivos para Windows com GUI moderna, CLI, monitoramento em tempo real,
+  regras personalizadas, undo persistente, detecção de duplicados e documentação web com MkDocs.
+</p>
 
-## Resumo do projeto
+## Visão Geral
 
-Este projeto foi criado para reduzir a bagunça digital do dia a dia. Em vez de mover arquivos manualmente, o Sortify centraliza a organização em um fluxo automatizado: você define categorias, regras e preferências, e a aplicação classifica os arquivos, registra o que foi feito e permite reverter a última operação quando necessário.
+O `Sortify` foi pensado para resolver um problema bem cotidiano: pastas como `Downloads` e `Desktop` viram um depósito de arquivos misturados muito rápido. Em vez de depender de organização manual, a aplicação transforma esse processo em um fluxo configurável e repetível.
 
-## O que ele faz
+O projeto reúne duas portas de entrada:
 
-- Organiza arquivos por extensão ou por estrutura de data.
-- Permite criar regras personalizadas com base no nome e no tipo do arquivo.
-- Detecta arquivos duplicados por hash e move para uma pasta dedicada.
-- Monitora pastas em tempo real com `watchdog`.
-- Oferece interface gráfica em `customtkinter` e alternativa via terminal.
-- Mantém logs diários e histórico para desfazer organizações.
-- Pode exibir notificacoes e rodar minimizado na bandeja do sistema.
-- Suporta agendamento diario ou por intervalo de minutos.
+- uma interface gráfica com `customtkinter`, focada em usabilidade e operação diária;
+- uma interface de linha de comando, útil para quem prefere terminal ou quer validar fluxos rapidamente.
 
-## Principais funcionalidades
+Por baixo dessa camada visual, existe um `core.py` com a regra de negócio central: normalização de configuração, roteamento por categoria, regras customizadas, organização em lote, simulação, pilha de undo, logs e busca de duplicados.
 
-| Funcionalidade | Descrição |
+## O Que O Projeto Entrega
+
+| Recurso | Como funciona na prática |
 |---|---|
-| Pastas customizáveis | Organize Downloads, Desktop ou qualquer pasta do sistema |
-| Categorias editáveis | Defina extensões e destinos no `config.json` ou pela interface |
-| Modo simulação | Visualize o que será movido antes de executar |
-| Regras personalizadas | Crie regras como `.pdf` + nome contendo `nota` |
-| Duplicados | Identifique arquivos repetidos por hash MD5 |
-| Organizar por data | Crie subpastas como `PDFs/2026/04-Abril/` |
-| Undo | Reverta a última organização com histórico persistente |
-| Dashboard | Acompanhe movidos, ignorados, erros e progresso |
-| Monitoramento contínuo | Observe várias pastas em tempo real |
-| Notificações e tray | Recursos opcionais para uso em segundo plano |
-| Build para `.exe` | Gere executável com PyInstaller via `build.bat` |
+| Organização por categoria | Move arquivos conforme a extensão para pastas como `PDFs`, `Imagens`, `Vídeos` e outras |
+| Regras personalizadas | Permite priorizar condições como extensão, nome contendo trecho e prefixo do arquivo |
+| Simulação | Mostra o que seria movido antes da execução real |
+| Organização por data | Pode criar subpastas como `PDFs/2026/Abril/` com base na data de modificação |
+| Duplicados | Calcula hash MD5 e move cópias para `Duplicados/` |
+| Undo persistente | Guarda o histórico das últimas operações e desfaz a mais recente |
+| Monitoramento | Usa `watchdog` para reagir quando novos arquivos entram em pastas monitoradas |
+| Agendamento | Executa automaticamente por horário fixo ou intervalo de minutos |
+| Logs | Mantém registros em `logs/organizador_YYYY-MM-DD.log` |
+| Internacionalização | Estrutura preparada com `locale/` e utilitário `i18n.py` |
+| Recursos opcionais | Notificações do sistema e minimização para a bandeja |
 
-## Stack e dependências
+## Fluxo Mental Do Sortify
 
-- Python 3.10+
-- `customtkinter` para a interface gráfica
-- `watchdog` para monitoramento de arquivos
-- `pytest` para testes
-- `plyer`, `pystray` e `Pillow` como recursos opcionais
+1. Você define categorias e regras.
+2. O arquivo entra em uma pasta monitorada ou é processado manualmente.
+3. O `core.py` verifica se ele deve ser ignorado.
+4. O sistema testa regras personalizadas antes das categorias por extensão.
+5. O arquivo é movido para a pasta destino com nome seguro.
+6. A ação é salva no histórico para permitir undo.
+7. Logs e contadores atualizam o estado da execução.
 
 ## Instalação
 
 ```bash
-git clone https://github.com/seu-usuario/desktop-helper.git
+git clone https://github.com/isranetoo/desktop-helper.git
 cd desktop-helper
 pip install -r requirements.txt
 ```
 
 ### Recursos opcionais
 
-Para notificações do sistema e ícone na bandeja:
+Instale também os extras se quiser notificações do sistema e bandeja:
 
 ```bash
 pip install -r requirements-optional.txt
@@ -67,7 +68,7 @@ pip install -r requirements-optional.txt
 pip install -r requirements-dev.txt
 ```
 
-## Como executar
+## Como Executar
 
 ### Interface gráfica
 
@@ -75,54 +76,159 @@ pip install -r requirements-dev.txt
 python organizador_gui.py
 ```
 
-### Linha de comando
+A GUI traz cinco áreas principais:
+
+- `Dashboard`: visão geral da sessão, progresso e atalhos rápidos;
+- `Organizar`: execução manual, simulação, busca de duplicados e undo;
+- `Monitorar`: monitoramento de múltiplas pastas e agendamento;
+- `Configurações`: edição de categorias e regras em JSON;
+- `Logs`: trilha de execução e diagnóstico.
+
+### Interface de linha de comando
 
 ```bash
 python organizador_cli.py
 ```
 
-## Como configurar
+A CLI oferece um menu com ações rápidas para:
 
-O comportamento da aplicação fica em `config.json`. Você pode editar esse arquivo manualmente ou usar os botões de configuração na interface.
+- organizar `Downloads`;
+- organizar `Desktop`;
+- escolher outra pasta;
+- simular antes de mover;
+- desfazer a última organização;
+- encontrar duplicados;
+- monitorar `Downloads` em tempo real.
 
-### Exemplo de regra personalizada
+## Configuração
+
+O comportamento do projeto é controlado por `config.json`. A aplicação carrega esse arquivo, valida a estrutura e normaliza vários tipos de entrada automaticamente.
+
+### Exemplo realista
 
 ```json
 {
-    "name": "Notas Fiscais",
-    "conditions": {
+  "categories": {
+    "Imagens": [".jpg", ".jpeg", ".png", ".webp"],
+    "PDFs": [".pdf"],
+    "Documentos": [".docx", ".txt", ".md"],
+    "Codigos": [".py", ".js", ".ts", ".sql"]
+  },
+  "ignored_extensions": [".lnk", ".ini", ".url"],
+  "ignored_names": ["desktop.ini", "Thumbs.db", ".DS_Store"],
+  "custom_rules": [
+    {
+      "name": "Notas Fiscais",
+      "conditions": {
         "extension": ".pdf",
         "name_contains": "nota"
-    },
-    "destination": "Notas Fiscais"
+      },
+      "destination": "Notas Fiscais"
+    }
+  ],
+  "monitored_folders": [],
+  "organize_mode": "extension",
+  "date_subfolder": true,
+  "notifications_enabled": true,
+  "minimize_to_tray": false,
+  "scheduled_enabled": false,
+  "scheduled_mode": "daily",
+  "scheduled_time": "18:00",
+  "scheduled_interval_minutes": 60,
+  "language": "pt"
 }
 ```
 
-### Condições disponíveis
+### Condições aceitas em regras personalizadas
 
-| Condição | Tipo | Exemplo |
-|---|---|---|
-| `extension` | string ou lista | `".pdf"` ou `[".pdf", ".xml"]` |
-| `name_contains` | string | `"nota"` |
-| `name_starts_with` | string | `"IMG_"` |
+| Chave | Tipo | Exemplo | Observação |
+|---|---|---|---|
+| `extension` | string ou lista | `".pdf"` ou `[".pdf", ".xml"]` | É normalizada para minúsculas com ponto |
+| `name_contains` | string | `"nota"` | Busca trecho no nome do arquivo |
+| `name_starts_with` | string | `"IMG_"` | Útil para padrões previsíveis |
 
-## Estrutura do projeto
+### Observações importantes
+
+- Regras personalizadas têm prioridade sobre categorias por extensão.
+- `date_subfolder` é o campo que realmente ativa a organização em subpastas por data.
+- `organize_mode` existe na configuração e é validado, mas a versão atual opera com organização por categoria e data opcional.
+- `minimize_to_tray` depende das dependências opcionais instaladas.
+
+## Exemplo Prático
+
+Se a pasta `Downloads` contiver:
+
+```text
+Downloads/
+├── nota_abril.pdf
+├── screenshot_home.png
+├── roteiro.md
+└── instalador.exe
+```
+
+Com categorias e regras padrão, um resultado possível é:
+
+```text
+Downloads/
+├── Notas Fiscais/
+│   └── 2026/
+│       └── Abril/
+│           └── nota_abril.pdf
+├── Imagens/
+│   └── 2026/
+│       └── Abril/
+│           └── screenshot_home.png
+├── Documentos/
+│   └── 2026/
+│       └── Abril/
+│           └── roteiro.md
+└── Executaveis/
+    └── 2026/
+        └── Abril/
+            └── instalador.exe
+```
+
+## Estrutura Do Projeto
 
 ```text
 desktop-helper/
-├── config.json                 # Categorias, regras e preferências da aplicação
-├── core.py                     # Lógica principal de organização, undo e duplicados
-├── organizador_gui.py          # Aplicacao desktop com customtkinter
-├── organizador_cli.py          # Interface de linha de comando
-├── i18n.py                     # Suporte a tradução
-├── locale/                     # Arquivos de idioma
-├── generated/icons/            # Ícones e imagem usada na capa do projeto
-├── tests/                      # Suíte de testes automatizados
-├── requirements.txt            # Dependências base
-├── requirements-optional.txt   # Notificações e system tray
-├── requirements-dev.txt        # Ferramentas de teste
-├── build.bat                   # Build do executável no Windows
-└── organizador_gui.spec        # Configuração do PyInstaller
+├── .github/workflows/docs.yml      # Deploy automático da documentação
+├── docs/                           # Páginas do MkDocs
+├── icons/                          # Identidade visual do projeto
+├── locale/                         # Traduções JSON
+├── logs/                           # Logs gerados em tempo de execução
+├── tests/                          # Testes automatizados do core
+├── CHANGELOG.md                    # Histórico de mudanças
+├── LICENSE                         # Licença MIT
+├── README.md                       # Visão geral do repositório
+├── build.bat                       # Build Windows com PyInstaller
+├── config.json                     # Configuração principal
+├── core.py                         # Regra de negócio central
+├── i18n.py                         # Carregamento de traduções
+├── mkdocs.yml                      # Configuração do site de documentação
+├── organizador_cli.py              # Entrada em linha de comando
+├── organizador_gui.py              # Aplicação desktop com customtkinter
+├── organizador_gui.spec            # Arquivo base do PyInstaller
+├── requirements-dev.txt            # Ferramentas de desenvolvimento
+├── requirements-optional.txt       # Notificações, tray e Pillow
+└── requirements.txt                # Dependências base
+```
+
+## Documentação Web
+
+O projeto inclui uma documentação expandida em `docs/`, com tema `Material for MkDocs`, navegação por seções e deploy automatizado no GitHub Pages.
+
+### Rodar localmente
+
+```bash
+pip install mkdocs mkdocs-material
+mkdocs serve
+```
+
+### Build local
+
+```bash
+mkdocs build
 ```
 
 ## Testes
@@ -131,7 +237,16 @@ desktop-helper/
 pytest
 ```
 
-## Gerar executável
+Os testes atuais cobrem principalmente:
+
+- ignorar arquivos temporários e nomes especiais;
+- roteamento por regras personalizadas;
+- validação e normalização de configuração;
+- organização com undo;
+- pilha de múltiplas operações de desfazer;
+- busca de duplicados.
+
+## Build Do Executável
 
 No Windows:
 
@@ -139,26 +254,30 @@ No Windows:
 build.bat
 ```
 
-O executável será gerado em `dist/`.
+O processo gera a aplicação em `dist/`.
 
-## Release checklist
+Observação: a aplicação usa `icons/sortify.png` e `icons/sortify.ico` em tempo de desenvolvimento. Se você quiser garantir esses assets dentro do executável final, vale revisar o empacotamento no `PyInstaller` para incluir a pasta `icons/`.
+
+## Stack
+
+- Python 3.10+
+- `customtkinter`
+- `watchdog`
+- `pytest`
+- `plyer`
+- `pystray`
+- `Pillow`
+- `mkdocs`
+- `mkdocs-material`
+
+## Release Checklist
 
 1. Rodar `pytest`.
 2. Validar a GUI com `python organizador_gui.py`.
-3. Validar os recursos opcionais, se usados.
-4. Atualizar `CHANGELOG.md`.
+3. Validar monitoramento, simulação, undo e duplicados.
+4. Revisar `config.json` e `CHANGELOG.md`.
+5. Gerar o build da documentação com `mkdocs build`.
 
-## Licenca
+## Licença
 
-Projeto licenciado sob MIT. Veja `LICENSE` para mais detalhes.
-
-## Documentação com MkDocs
-
-Este repositório agora inclui documentação em `docs/` com configuração em `mkdocs.yml` e deploy automático para GitHub Pages em `.github/workflows/docs.yml`.
-
-### Rodar localmente
-
-```bash
-pip install mkdocs mkdocs-material
-mkdocs serve
-```
+Projeto licenciado sob MIT. Veja `LICENSE` para os detalhes.

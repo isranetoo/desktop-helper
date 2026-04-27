@@ -1,5 +1,5 @@
 site_name: Sortify Docs
-site_description: Documentação do Sortify (desktop-helper)
+site_description: Documentação completa do Sortify, organizador de arquivos para Windows
 site_url: https://isranetoo.github.io/desktop-helper/
 repo_url: https://github.com/isranetoo/desktop-helper
 repo_name: isranetoo/desktop-helper
@@ -7,22 +7,54 @@ repo_name: isranetoo/desktop-helper
 theme:
   name: material
   language: pt-BR
+  logo: assets/sortify.png
+  favicon: assets/sortify.png
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: amber
   features:
     - navigation.tabs
+    - navigation.sections
     - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - toc.follow
     - content.code.copy
+    - content.tabs.link
 
 nav:
   - Início: index.md
-  - Guia rápido: guia-rapido.md
+  - Primeiros passos: guia-rapido.md
+  - Interface e fluxos: interface-e-fluxos.md
   - Configuração: configuracao.md
-  - Deploy no GitHub Pages: deploy-github-pages.md
+  - Automações: automacoes-e-monitoramento.md
+  - Exemplos: exemplos.md
+  - Arquitetura: arquitetura.md
+  - Deploy docs: deploy-github-pages.md
+  - Solução de problemas: solucao-de-problemas.md
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - def_list
+  - md_in_html
   - tables
   - toc:
       permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 plugins:
   - search
+
+extra_css:
+  - assets/stylesheets/extra.css

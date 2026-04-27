@@ -61,8 +61,8 @@ COLORS = {
     "text_muted": "#64748b",
 }
 
-ICON_ICO_PATH = os.path.join("generated", "icons", "sortify.ico")
-ICON_PNG_PATH = os.path.join("generated", "icons", "sortify.png")
+ICON_ICO_PATH = os.path.join("icons", "sortify.ico")
+ICON_PNG_PATH = os.path.join("icons", "sortify.png")
 APP_USER_MODEL_ID = "com.sortify.desktophelper"
 
 
