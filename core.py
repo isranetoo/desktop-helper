@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
 
+from i18n import get_translator
+
 # ==========================================
 # CONSTANTES
 # ==========================================
@@ -34,12 +36,12 @@ LOGS_DIR = APP_DIR / "logs"
 DOWNLOADS_PATH = str(Path.home() / "Downloads")
 DESKTOP_PATH = str(Path.home() / "Desktop")
 
-MONTH_NAMES_PT = {
-    1: "01-Janeiro", 2: "02-Fevereiro", 3: "03-Marco",
-    4: "04-Abril", 5: "05-Maio", 6: "06-Junho",
-    7: "07-Julho", 8: "08-Agosto", 9: "09-Setembro",
-    10: "10-Outubro", 11: "11-Novembro", 12: "12-Dezembro",
-}
+
+def get_i18n(config: Optional[dict] = None):
+    language = "pt"
+    if isinstance(config, dict):
+        language = str(config.get("language", "pt")).strip().lower() or "pt"
+    return get_translator(language)
 
 
 # ==========================================
@@ -70,6 +72,7 @@ DEFAULT_CONFIG = {
     "scheduled_mode": "daily",
     "scheduled_time": "18:00",
     "scheduled_interval_minutes": 60,
+    "language": "pt",
 }
 
 ALLOWED_ORGANIZE_MODES = {"extension", "date"}
@@ -220,6 +223,9 @@ def validate_config(config: dict, logger: Optional[logging.Logger] = None) -> di
     elif logger and "scheduled_time" in config:
         logger.warning("Config inválida: scheduled_time deve ser HH:MM (24h); mantendo padrão.")
 
+    raw_language = str(config.get("language", validated["language"])).strip().lower()
+    validated["language"] = raw_language if raw_language else validated["language"]
+
     raw_interval = config.get("scheduled_interval_minutes", validated["scheduled_interval_minutes"])
     if isinstance(raw_interval, int) and raw_interval > 0:
         validated["scheduled_interval_minutes"] = raw_interval
@@ -355,12 +361,13 @@ def get_destination_folder(filename: str, config: dict) -> str:
     return "Outros"
 
 
-def build_date_subfolder(file_path: str) -> str:
+def build_date_subfolder(file_path: str, config: Optional[dict] = None) -> str:
     """Retorna subpasta baseada na data de modificação do arquivo."""
     try:
         mtime = os.path.getmtime(file_path)
         dt = datetime.fromtimestamp(mtime)
-        month_name = MONTH_NAMES_PT.get(dt.month, f"{dt.month:02d}")
+        i18n = get_i18n(config=config)
+        month_name = i18n.month_name(dt.month)
         return os.path.join(str(dt.year), month_name)
     except Exception:
         return ""
@@ -446,7 +453,7 @@ def simulate_organization(
         # Subpasta por data
         date_sub = ""
         if config.get("date_subfolder"):
-            date_sub = build_date_subfolder(item_path)
+            date_sub = build_date_subfolder(item_path, config=config)
 
         if date_sub:
             full_folder = os.path.join(folder_name, date_sub)
@@ -496,7 +503,7 @@ def move_file(
 
     # Subpasta por data
     if config.get("date_subfolder"):
-        date_sub = build_date_subfolder(file_path)
+        date_sub = build_date_subfolder(file_path, config=config)
         if date_sub:
             folder_name = os.path.join(folder_name, date_sub)
 
