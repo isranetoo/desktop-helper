@@ -1,25 +1,20 @@
 @echo off
 echo ============================================
-echo  Construindo executavel do Organizador
+echo  Build multiplataforma do Sortify
 echo ============================================
 echo.
 
-pip install -r requirements.txt
-pip install pyinstaller
+python scripts\build.py --target windows
 
-echo.
-echo Gerando .exe ...
-echo.
-
-pyinstaller ^
-    --onefile ^
-    --windowed ^
-    --name "Organizador de Arquivos" ^
-    --add-data "config.json;." ^
-    organizador_gui.py
+if %ERRORLEVEL% neq 0 (
+  echo.
+  echo Build falhou.
+  pause
+  exit /b %ERRORLEVEL%
+)
 
 echo.
 echo ============================================
-echo  Executavel criado em dist/
+echo  Build concluido. Artefatos em dist/
 echo ============================================
 pause

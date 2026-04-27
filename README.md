@@ -201,7 +201,8 @@ desktop-helper/
 ├── CHANGELOG.md                    # Histórico de mudanças
 ├── LICENSE                         # Licença MIT
 ├── README.md                       # Visão geral do repositório
-├── build.bat                       # Build Windows com PyInstaller
+├── build.bat                       # Atalho de build para Windows
+├── scripts/                        # Build multiplataforma (Windows/macOS/Linux)
 ├── config.json                     # Configuração principal
 ├── core.py                         # Regra de negócio central
 ├── i18n.py                         # Carregamento de traduções
@@ -246,17 +247,37 @@ Os testes atuais cobrem principalmente:
 - pilha de múltiplas operações de desfazer;
 - busca de duplicados.
 
-## Build Do Executável
+## Build Multiplataforma
 
-No Windows:
+O projeto agora inclui um fluxo unificado de empacotamento com `scripts/build.py`.
+
+### Detectar SO automaticamente
 
 ```bash
-build.bat
+python scripts/build.py
 ```
 
-O processo gera a aplicação em `dist/`.
+### Build por plataforma
 
-Observação: a aplicação usa `icons/sortify.png` e `icons/sortify.ico` em tempo de desenvolvimento. Se você quiser garantir esses assets dentro do executável final, vale revisar o empacotamento no `PyInstaller` para incluir a pasta `icons/`.
+```bash
+python scripts/build.py --target windows
+python scripts/build.py --target macos
+python scripts/build.py --target linux
+```
+
+Atalhos:
+
+- `build.bat` (Windows)
+- `scripts/build_macos.sh` (macOS)
+- `scripts/build_linux.sh` (Linux)
+
+Artefatos esperados em `dist/`:
+
+- `sortify-windows.exe`
+- `Sortify-macos.app` (compacte para `Sortify-macos.zip` no release)
+- `sortify-linux.AppImage` (ou `sortify-linux` quando `appimagetool` não estiver disponível)
+
+Observação: a aplicação usa `icons/sortify.png` e `icons/sortify.ico` em tempo de desenvolvimento. Se você quiser garantir esses assets dentro do executável final, revise o empacotamento para incluir a pasta `icons/`.
 
 ## Stack
 
@@ -275,8 +296,13 @@ Observação: a aplicação usa `icons/sortify.png` e `icons/sortify.ico` em tem
 1. Rodar `pytest`.
 2. Validar a GUI com `python organizador_gui.py`.
 3. Validar monitoramento, simulação, undo e duplicados.
-4. Revisar `config.json` e `CHANGELOG.md`.
-5. Gerar o build da documentação com `mkdocs build`.
+4. Gerar os artefatos multiplataforma com `python scripts/build.py --target ...`.
+5. Publicar release no GitHub com os assets:
+   - `sortify-windows.exe`
+   - `Sortify-macos.zip`
+   - `sortify-linux.AppImage`
+6. Revisar `config.json` e `CHANGELOG.md`.
+7. Gerar o build da documentação com `mkdocs build`.
 
 ## Licença
 

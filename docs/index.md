@@ -107,6 +107,7 @@ Esse equilíbrio entre automação e controle aparece em toda a aplicação:
 | `Automações` | Usar monitoramento, scheduler, duplicados e notificações |
 | `Exemplos` | Copiar cenários prontos e adaptar para sua rotina |
 | `Arquitetura` | Entender a base de código e o desenho do projeto |
+| `Empacotamento e Releases` | Gerar builds para Windows/macOS/Linux e publicar no GitHub Releases |
 | `Deploy docs` | Publicar a documentação no GitHub Pages |
 | `Solução de problemas` | Resolver erros e dúvidas operacionais comuns |
 
