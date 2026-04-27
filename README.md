@@ -1,98 +1,89 @@
-# Desktop Helper — Organizador de Arquivos
+<p align="center">
+    <img src="generated/icons/sortify.png" alt="Capa do Sortify" width="220">
+</p>
 
-Ferramenta para organizar automaticamente arquivos de Downloads, Desktop e qualquer outra pasta do seu computador.
+# Sortify — Organizador de Arquivos
 
-## Funcionalidades
+O Sortify e um organizador de arquivos para Windows com interface grafica moderna e versao em linha de comando. Ele monitora pastas como Downloads, Desktop ou qualquer diretorio escolhido pelo usuario, identifica o tipo de cada arquivo e move automaticamente para categorias configuraveis, com suporte a regras personalizadas, deteccao de duplicados, agendamento e desfazer.
 
-| #  | Funcionalidade | Descrição |
-|----|---------------|-----------|
-| 1  | Selecionar pastas | Organize qualquer pasta do sistema, não apenas Downloads e Desktop |
-| 2  | Categorias editáveis | As extensões e pastas de destino são configuráveis via `config.json` ou pelo editor visual |
-| 3  | Modo simulação | Veja o que seria feito antes de mover qualquer arquivo |
-| 4  | Log em arquivo | Todas as ações ficam registradas em `logs/organizador_YYYY-MM-DD.log` |
-| 5  | Desfazer | Reverta a última organização com um clique |
-| 6  | Ignorar arquivos | `desktop.ini`, `.lnk`, `.tmp` e outros são ignorados automaticamente |
-| 7  | Organizar por data | Opcionalmente cria sub-pastas por ano/mês (ex: `PDFs/2026/04-Abril/`) |
-| 8  | Detectar duplicados | Encontra arquivos duplicados por hash MD5 e move para `Duplicados/` |
-| 9  | Barra de progresso | Acompanhe o progresso em tempo real |
-| 10 | Dashboard | Contadores de arquivos movidos, ignorados e erros na sessão |
-| 11 | Minimizar para bandeja | Roda em segundo plano no system tray (requer `pystray` e `Pillow`) |
-| 12 | Executável `.exe` | Script `build.bat` incluso para gerar o executável via PyInstaller |
-| 13 | Ícone do aplicativo | Ícone customizado na janela e barra de tarefas quando os arquivos de ícone estão presentes em `generated/icons/` |
-| 14 | Notificações | Alertas do sistema quando um arquivo é organizado (requer `plyer`) |
-| 15 | Monitorar várias pastas | Adicione quantas pastas quiser ao monitoramento simultâneo |
-| 16 | Regras personalizadas | Regras tipo: se é `.pdf` e contém "nota" no nome → `Notas Fiscais/` |
-| 17 | Agendamento automático | Programe organização diária (HH:MM) ou por intervalo em minutos |
+## Resumo do projeto
 
-## Instalação
+Este projeto foi criado para reduzir a bagunca digital do dia a dia. Em vez de mover arquivos manualmente, o Sortify centraliza a organizacao em um fluxo automatizado: voce define categorias, regras e preferencias, e a aplicacao classifica os arquivos, registra o que foi feito e permite reverter a ultima operacao quando necessario.
+
+## O que ele faz
+
+- Organiza arquivos por extensao ou por estrutura de data.
+- Permite criar regras personalizadas com base no nome e no tipo do arquivo.
+- Detecta arquivos duplicados por hash e move para uma pasta dedicada.
+- Monitora pastas em tempo real com `watchdog`.
+- Oferece interface grafica em `customtkinter` e alternativa via terminal.
+- Mantem logs diarios e historico para desfazer organizacoes.
+- Pode exibir notificacoes e rodar minimizado na bandeja do sistema.
+- Suporta agendamento diario ou por intervalo de minutos.
+
+## Principais funcionalidades
+
+| Funcionalidade | Descricao |
+|---|---|
+| Pastas customizaveis | Organize Downloads, Desktop ou qualquer pasta do sistema |
+| Categorias editaveis | Defina extensoes e destinos no `config.json` ou pela interface |
+| Modo simulacao | Visualize o que sera movido antes de executar |
+| Regras personalizadas | Crie regras como `.pdf` + nome contendo `nota` |
+| Duplicados | Identifique arquivos repetidos por hash MD5 |
+| Organizar por data | Crie subpastas como `PDFs/2026/04-Abril/` |
+| Undo | Reverta a ultima organizacao com historico persistente |
+| Dashboard | Acompanhe movidos, ignorados, erros e progresso |
+| Monitoramento continuo | Observe varias pastas em tempo real |
+| Notificacoes e tray | Recursos opcionais para uso em segundo plano |
+| Build para `.exe` | Gere executavel com PyInstaller via `build.bat` |
+
+## Stack e dependencias
+
+- Python 3.10+
+- `customtkinter` para a interface grafica
+- `watchdog` para monitoramento de arquivos
+- `pytest` para testes
+- `plyer`, `pystray` e `Pillow` como recursos opcionais
+
+## Instalacao
 
 ```bash
-# Clone o repositório
 git clone https://github.com/seu-usuario/desktop-helper.git
 cd desktop-helper
-
-# Instale as dependências
 pip install -r requirements.txt
-
-# (Opcional) Recursos de notificação e bandeja
-pip install -r requirements-optional.txt
-
-# Execute
-python organizador_gui.py
 ```
 
-### Dependências obrigatórias
+### Recursos opcionais
 
-- `watchdog` — monitoramento de pastas
+Para notificacoes do sistema e icone na bandeja:
 
-### Dependências opcionais (recursos extras)
+```bash
+pip install -r requirements-optional.txt
+```
 
-- `plyer` — notificações do sistema
-- `pystray` + `Pillow` — minimizar para bandeja do sistema
-
-### Dependências de desenvolvimento
-
-- `pytest` — suíte de testes automatizados (`requirements-dev.txt`)
-
-## Testes
+### Dependencias de desenvolvimento
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
 ```
 
-## Release checklist (resumo)
+## Como executar
 
-1. Rodar testes automatizados (`pytest`).
-2. Validar execução da GUI (`python organizador_gui.py`).
-3. Validar dependências opcionais quando usar notificações/tray (`requirements-optional.txt`).
-4. Atualizar `CHANGELOG.md` com o que entrou na versão.
-
-## Gerar executável (.exe)
+### Interface grafica
 
 ```bash
-# No Windows, basta rodar:
-build.bat
+python organizador_gui.py
 ```
 
-O executável será criado em `dist/Organizador de Arquivos.exe`.
+### Linha de comando
 
-## Estrutura do projeto
-
-```
-desktop-helper/
-├── config.json            # Configuração de categorias, regras e preferências
-├── core.py                # Lógica de negócio (mover, desfazer, duplicados, etc.)
-├── organizador_gui.py     # Interface gráfica (tkinter)
-├── requirements.txt       # Dependências Python
-├── build.bat              # Script para gerar .exe
-├── logs/                  # Logs diários (criado automaticamente)
-└── undo_history.json      # Histórico para desfazer (criado automaticamente)
+```bash
+python organizador_cli.py
 ```
 
-## Configuração
+## Como configurar
 
-Edite `config.json` diretamente ou use os botões **⚙ Categorias** e **📏 Regras** na interface.
+O comportamento da aplicacao fica em `config.json`. Voce pode editar esse arquivo manualmente ou usar os botoes de configuracao na interface.
 
 ### Exemplo de regra personalizada
 
@@ -107,14 +98,56 @@ Edite `config.json` diretamente ou use os botões **⚙ Categorias** e **📏 Re
 }
 ```
 
-### Condições disponíveis
+### Condicoes disponiveis
 
-| Condição | Tipo | Exemplo |
-|----------|------|---------|
+| Condicao | Tipo | Exemplo |
+|---|---|---|
 | `extension` | string ou lista | `".pdf"` ou `[".pdf", ".xml"]` |
 | `name_contains` | string | `"nota"` |
 | `name_starts_with` | string | `"IMG_"` |
 
-## Licença
+## Estrutura do projeto
 
-MIT License — veja [LICENSE](LICENSE) para detalhes.
+```text
+desktop-helper/
+├── config.json                 # Categorias, regras e preferencias da aplicacao
+├── core.py                     # Logica principal de organizacao, undo e duplicados
+├── organizador_gui.py          # Aplicacao desktop com customtkinter
+├── organizador_cli.py          # Interface de linha de comando
+├── i18n.py                     # Suporte a traducao
+├── locale/                     # Arquivos de idioma
+├── generated/icons/            # Icones e imagem usada na capa do projeto
+├── tests/                      # Suite de testes automatizados
+├── requirements.txt            # Dependencias base
+├── requirements-optional.txt   # Notificacoes e system tray
+├── requirements-dev.txt        # Ferramentas de teste
+├── build.bat                   # Build do executavel no Windows
+└── organizador_gui.spec        # Configuracao do PyInstaller
+```
+
+## Testes
+
+```bash
+pytest
+```
+
+## Gerar executavel
+
+No Windows:
+
+```bash
+build.bat
+```
+
+O executavel sera gerado em `dist/`.
+
+## Release checklist
+
+1. Rodar `pytest`.
+2. Validar a GUI com `python organizador_gui.py`.
+3. Validar os recursos opcionais, se usados.
+4. Atualizar `CHANGELOG.md`.
+
+## Licenca
+
+Projeto licenciado sob MIT. Veja `LICENSE` para mais detalhes.
