@@ -11,6 +11,7 @@ import json
 import threading
 import tkinter as tk
 from tkinter import messagebox, filedialog
+from typing import Callable
 
 import customtkinter as ctk
 
@@ -895,6 +896,9 @@ class FileOrganizerApp(ctk.CTk):
             self.counter_errors += 1
         self.after(0, self._update_counter_display)
 
+    def _run_background_task(self, target: Callable[[], None]):
+        threading.Thread(target=target, daemon=True).start()
+
     # ──────────────────────────────────────
     # ORGANIZAÇÃO
     # ──────────────────────────────────────
@@ -909,7 +913,7 @@ class FileOrganizerApp(ctk.CTk):
             )
             self._reset_progress()
 
-        threading.Thread(target=task, daemon=True).start()
+        self._run_background_task(task)
 
     def _organize_downloads(self):
         self._show_page("logs")
@@ -943,7 +947,7 @@ class FileOrganizerApp(ctk.CTk):
                 return
             self.after(0, lambda: self._confirm_simulation(folder, actions))
 
-        threading.Thread(target=task, daemon=True).start()
+        self._run_background_task(task)
 
     def _confirm_simulation(self, folder: str, actions: list):
         resp = messagebox.askyesno(
@@ -981,7 +985,7 @@ class FileOrganizerApp(ctk.CTk):
             )
             self._reset_progress()
 
-        threading.Thread(target=task, daemon=True).start()
+        self._run_background_task(task)
 
     # ──────────────────────────────────────
     # DUPLICADOS
@@ -1003,7 +1007,7 @@ class FileOrganizerApp(ctk.CTk):
             )
             self._reset_progress()
 
-        threading.Thread(target=task, daemon=True).start()
+        self._run_background_task(task)
 
     # ──────────────────────────────────────
     # MONITORAMENTO
@@ -1146,7 +1150,7 @@ class FileOrganizerApp(ctk.CTk):
             pystray.MenuItem("Sair", self._quit_from_tray),
         )
         self.tray_icon = pystray.Icon("sortify", image, "Sortify", menu)
-        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+        self._run_background_task(self.tray_icon.run)
 
     def _restore_from_tray(self, icon=None, item=None):
         if self.tray_icon:

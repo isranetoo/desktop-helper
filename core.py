@@ -70,6 +70,8 @@ DEFAULT_CONFIG = {
 
 ALLOWED_ORGANIZE_MODES = {"extension", "date"}
 SKIP_DUPLICATE_DIRS = {"Duplicados", "logs", "__pycache__", ".git"}
+UNDO_FILE_VERSION = 2
+MAX_UNDO_ENTRIES = 30
 
 
 def _normalize_extension(value: str) -> str:
@@ -575,25 +577,58 @@ def organize_folder(
 # UNDO
 # ==========================================
 def save_undo_history(records: list[dict]) -> None:
-    """Salva histórico de ações para desfazer."""
-    history = {
-        "timestamp": datetime.now().isoformat(),
-        "actions": records,
+    """Empilha um histórico de ações para desfazer."""
+    if not records:
+        return
+
+    stack = load_undo_stack()
+    stack.append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "actions": records,
+        }
+    )
+    stack = stack[-MAX_UNDO_ENTRIES:]
+
+    payload = {
+        "version": UNDO_FILE_VERSION,
+        "entries": stack,
     }
+
     with open(UNDO_PATH, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2, ensure_ascii=False)
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+
+def load_undo_stack() -> list[dict]:
+    """Carrega pilha de histórico de undo (compatível com formato legado)."""
+    if not UNDO_PATH.exists():
+        return []
+
+    try:
+        with open(UNDO_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        file_logger.exception(f"Erro ao carregar histórico de undo em {UNDO_PATH}")
+        return []
+
+    if isinstance(data, dict) and isinstance(data.get("entries"), list):
+        entries = [item for item in data["entries"] if isinstance(item, dict) and item.get("actions")]
+        return entries
+
+    # Compatibilidade com formato legado:
+    # {"timestamp": "...", "actions": [...]}
+    if isinstance(data, dict) and isinstance(data.get("actions"), list):
+        return [data]
+
+    return []
 
 
 def load_undo_history() -> Optional[dict]:
-    """Carrega o histórico de undo."""
-    if not UNDO_PATH.exists():
+    """Retorna a última entrada da pilha de undo."""
+    stack = load_undo_stack()
+    if not stack:
         return None
-    try:
-        with open(UNDO_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        file_logger.exception(f"Erro ao carregar histórico de undo em {UNDO_PATH}")
-        return None
+    return stack[-1]
 
 
 def undo_last_organization(
@@ -605,12 +640,13 @@ def undo_last_organization(
     Desfaz a última organização.
     Retorna o número de arquivos restaurados.
     """
-    history = load_undo_history()
-    if not history:
+    stack = load_undo_stack()
+    if not stack:
         if logger:
             logger("⚠️ Nenhum histórico de organização encontrado.")
         return 0
 
+    history = stack[-1]
     actions = history.get("actions", [])
     if not actions:
         if logger:
@@ -651,8 +687,13 @@ def undo_last_organization(
     # Limpa pastas vazias que sobraram
     _cleanup_empty_dirs(actions)
 
-    # Remove o histórico após desfazer
-    if UNDO_PATH.exists():
+    # Atualiza pilha removendo última entrada já desfeita
+    stack.pop()
+    if stack:
+        payload = {"version": UNDO_FILE_VERSION, "entries": stack}
+        with open(UNDO_PATH, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+    elif UNDO_PATH.exists():
         UNDO_PATH.unlink()
 
     if logger:

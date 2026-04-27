@@ -32,6 +32,9 @@ cd desktop-helper
 # Instale as dependências
 pip install -r requirements.txt
 
+# (Opcional) Recursos de notificação e bandeja
+pip install -r requirements-optional.txt
+
 # Execute
 python organizador_gui.py
 ```
@@ -40,7 +43,7 @@ python organizador_gui.py
 
 - `watchdog` — monitoramento de pastas
 
-### Dependências opcionais
+### Dependências opcionais (recursos extras)
 
 - `plyer` — notificações do sistema
 - `pystray` + `Pillow` — minimizar para bandeja do sistema
@@ -55,6 +58,13 @@ python organizador_gui.py
 pip install -r requirements-dev.txt
 pytest
 ```
+
+## Release checklist (resumo)
+
+1. Rodar testes automatizados (`pytest`).
+2. Validar execução da GUI (`python organizador_gui.py`).
+3. Validar dependências opcionais quando usar notificações/tray (`requirements-optional.txt`).
+4. Atualizar `CHANGELOG.md` com o que entrou na versão.
 
 ## Gerar executável (.exe)
 
