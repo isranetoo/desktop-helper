@@ -22,7 +22,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 import core
-from icon_factory import ensure_icon_assets
 from i18n import get_translator
 
 # Tenta importar pystray (opcional)
@@ -363,11 +362,8 @@ class FileOrganizerApp(ctk.CTk):
     # HELPERS DE UI
     # ──────────────────────────────────────
     def _apply_window_icon(self):
-        if getattr(sys, "_MEIPASS", None):
-            ico_path = get_resource_path(ICON_ICO_PATH)
-            png_path = get_resource_path(ICON_PNG_PATH)
-        else:
-            ico_path, png_path = ensure_icon_assets()
+        ico_path = get_resource_path(ICON_ICO_PATH)
+        png_path = get_resource_path(ICON_PNG_PATH)
 
         if os.name == "nt" and os.path.exists(ico_path):
             try:
@@ -1434,10 +1430,7 @@ class FileOrganizerApp(ctk.CTk):
             return
 
         self.withdraw()
-        if getattr(sys, "_MEIPASS", None):
-            png_path = get_resource_path(ICON_PNG_PATH)
-        else:
-            _, png_path = ensure_icon_assets()
+        png_path = get_resource_path(ICON_PNG_PATH)
         if os.path.exists(png_path):
             image = Image.open(png_path)
         else:
