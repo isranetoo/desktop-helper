@@ -1,8 +1,8 @@
 site_name: Sortify Docs
 site_description: Documentação do Sortify (desktop-helper)
-site_url: https://seu-usuario.github.io/desktop-helper/
-repo_url: https://github.com/seu-usuario/desktop-helper
-repo_name: seu-usuario/desktop-helper
+site_url: https://isranetoo.github.io/desktop-helper/
+repo_url: https://github.com/isranetoo/desktop-helper
+repo_name: isranetoo/desktop-helper
 
 theme:
   name: material
