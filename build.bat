@@ -11,15 +11,11 @@ echo.
 echo Gerando .exe ...
 echo.
 
-python -c "from icon_factory import ensure_icon_assets; ensure_icon_assets()"
-
 pyinstaller ^
     --onefile ^
     --windowed ^
     --name "Organizador de Arquivos" ^
     --add-data "config.json;." ^
-    --add-data "generated/icons;generated/icons" ^
-    --icon="generated/icons/sortify.ico" ^
     organizador_gui.py
 
 echo.

@@ -18,7 +18,7 @@ Ferramenta para organizar automaticamente arquivos de Downloads, Desktop e qualq
 | 10 | Dashboard | Contadores de arquivos movidos, ignorados e erros na sessão |
 | 11 | Minimizar para bandeja | Roda em segundo plano no system tray (requer `pystray` e `Pillow`) |
 | 12 | Executável `.exe` | Script `build.bat` incluso para gerar o executável via PyInstaller |
-| 13 | Ícone do aplicativo | Ícone customizado na janela, barra de tarefas e executável (gerado automaticamente em `generated/icons/`) |
+| 13 | Ícone do aplicativo | Ícone customizado na janela e barra de tarefas quando os arquivos de ícone estão presentes em `generated/icons/` |
 | 14 | Notificações | Alertas do sistema quando um arquivo é organizado (requer `plyer`) |
 | 15 | Monitorar várias pastas | Adicione quantas pastas quiser ao monitoramento simultâneo |
 | 16 | Regras personalizadas | Regras tipo: se é `.pdf` e contém "nota" no nome → `Notas Fiscais/` |
