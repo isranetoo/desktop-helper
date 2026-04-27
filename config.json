@@ -131,5 +131,9 @@
     "organize_mode": "extension",
     "date_subfolder": true,
     "notifications_enabled": true,
-    "minimize_to_tray": false
+    "minimize_to_tray": false,
+    "scheduled_enabled": false,
+    "scheduled_mode": "daily",
+    "scheduled_time": "18:00",
+    "scheduled_interval_minutes": 60
 }

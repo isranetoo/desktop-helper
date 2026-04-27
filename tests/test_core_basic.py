@@ -45,6 +45,10 @@ def test_validate_config_normalizes_types():
         ],
         "date_subfolder": True,
         "notifications_enabled": False,
+        "scheduled_enabled": True,
+        "scheduled_mode": "interval",
+        "scheduled_time": "07:30",
+        "scheduled_interval_minutes": "45",
     }
 
     validated = core.validate_config(config)
@@ -55,6 +59,10 @@ def test_validate_config_normalizes_types():
     assert validated["custom_rules"][0]["conditions"]["extension"] == ".pdf"
     assert validated["date_subfolder"] is True
     assert validated["notifications_enabled"] is False
+    assert validated["scheduled_enabled"] is True
+    assert validated["scheduled_mode"] == "interval"
+    assert validated["scheduled_time"] == "07:30"
+    assert validated["scheduled_interval_minutes"] == 45
 
 
 def test_load_config_fallback_on_invalid_json(tmp_path: Path, monkeypatch):

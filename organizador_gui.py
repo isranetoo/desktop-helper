@@ -9,6 +9,7 @@ import os
 import time
 import json
 import threading
+from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from typing import Callable
@@ -146,6 +147,12 @@ class FileOrganizerApp(ctk.CTk):
         # Estado
         self.observers: dict[str, Observer] = {}
         self.monitoring = False
+        self.scheduler_running = False
+        self.scheduler_thread = None
+        self.scheduler_stop_event = threading.Event()
+        self.scheduler_last_daily_key = ""
+        self.scheduler_last_interval_run = 0.0
+        self.scheduler_task_running = False
         self.counter_moved = 0
         self.counter_ignored = 0
         self.counter_errors = 0
@@ -155,6 +162,18 @@ class FileOrganizerApp(ctk.CTk):
         self.status_text = tk.StringVar(value="Parado")
         self.progress_var = tk.DoubleVar(value=0)
         self.date_var = tk.BooleanVar(value=self.config_data.get("date_subfolder", False))
+        self.scheduled_enabled_var = tk.BooleanVar(
+            value=self.config_data.get("scheduled_enabled", False)
+        )
+        self.scheduled_mode_var = tk.StringVar(
+            value=self.config_data.get("scheduled_mode", "daily")
+        )
+        self.scheduled_time_var = tk.StringVar(
+            value=self.config_data.get("scheduled_time", "18:00")
+        )
+        self.scheduled_interval_var = tk.StringVar(
+            value=str(self.config_data.get("scheduled_interval_minutes", 60))
+        )
 
         # Páginas
         self.pages: dict[str, ctk.CTkFrame] = {}
@@ -163,6 +182,8 @@ class FileOrganizerApp(ctk.CTk):
 
         self._build_layout()
         self._show_page("dashboard")
+        if self.config_data.get("scheduled_enabled", False):
+            self._start_scheduler()
 
     # ──────────────────────────────────────
     # LAYOUT PRINCIPAL
@@ -694,6 +715,90 @@ class FileOrganizerApp(ctk.CTk):
         for f in all_folders:
             self.folders_listbox.insert(tk.END, f)
 
+        # Agendamento periódico
+        self._make_section_title(page, "⏰", "Agendamento Periódico")
+
+        schedule_card = self._make_card(page)
+        schedule_card.pack(fill="x", padx=28, pady=(0, 12))
+
+        schedule_inner = ctk.CTkFrame(schedule_card, fg_color="transparent")
+        schedule_inner.pack(fill="x", padx=20, pady=16)
+
+        schedule_switch = ctk.CTkSwitch(
+            schedule_inner,
+            text="  Habilitar organização automática agendada",
+            variable=self.scheduled_enabled_var,
+            command=self._toggle_scheduled_enabled,
+            font=ctk.CTkFont(size=12),
+            progress_color=COLORS["accent"],
+        )
+        schedule_switch.pack(anchor="w", pady=(0, 12))
+
+        mode_row = ctk.CTkFrame(schedule_inner, fg_color="transparent")
+        mode_row.pack(fill="x", pady=(0, 8))
+
+        ctk.CTkLabel(
+            mode_row,
+            text="Modo:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["text_secondary"],
+        ).pack(side="left", padx=(0, 10))
+
+        self.schedule_mode_menu = ctk.CTkOptionMenu(
+            mode_row,
+            values=["Diário", "Intervalo"],
+            command=self._on_schedule_mode_change,
+            width=140,
+        )
+        self.schedule_mode_menu.pack(side="left")
+
+        controls_row = ctk.CTkFrame(schedule_inner, fg_color="transparent")
+        controls_row.pack(fill="x", pady=(4, 8))
+
+        self.schedule_time_label = ctk.CTkLabel(
+            controls_row,
+            text="Hora (HH:MM):",
+            text_color=COLORS["text_secondary"],
+        )
+        self.schedule_time_label.pack(side="left", padx=(0, 8))
+
+        self.schedule_time_entry = ctk.CTkEntry(
+            controls_row,
+            textvariable=self.scheduled_time_var,
+            width=110,
+        )
+        self.schedule_time_entry.pack(side="left", padx=(0, 16))
+
+        self.schedule_interval_label = ctk.CTkLabel(
+            controls_row,
+            text="Intervalo (min):",
+            text_color=COLORS["text_secondary"],
+        )
+        self.schedule_interval_label.pack(side="left", padx=(0, 8))
+
+        self.schedule_interval_entry = ctk.CTkEntry(
+            controls_row,
+            textvariable=self.scheduled_interval_var,
+            width=110,
+        )
+        self.schedule_interval_entry.pack(side="left")
+
+        save_row = ctk.CTkFrame(schedule_inner, fg_color="transparent")
+        save_row.pack(fill="x", pady=(8, 0))
+        self._make_action_button(
+            save_row,
+            "Salvar agendamento",
+            self._save_schedule_settings,
+            COLORS["green"],
+            COLORS["green_dim"],
+            "💾",
+            width=190,
+        ).pack(side="left")
+
+        mode_label = "Diário" if self.scheduled_mode_var.get() == "daily" else "Intervalo"
+        self.schedule_mode_menu.set(mode_label)
+        self._sync_schedule_controls()
+
     # ──────────────────────────────────────
     # PÁGINA: CONFIGURAÇÕES
     # ──────────────────────────────────────
@@ -1095,6 +1200,142 @@ class FileOrganizerApp(ctk.CTk):
         self.log(f"➖ Pasta removida: {folder}")
 
     # ──────────────────────────────────────
+    # AGENDAMENTO
+    # ──────────────────────────────────────
+    def _on_schedule_mode_change(self, selected: str):
+        mode = "daily" if selected == "Diário" else "interval"
+        self.scheduled_mode_var.set(mode)
+        self._sync_schedule_controls()
+
+    def _sync_schedule_controls(self):
+        is_daily = self.scheduled_mode_var.get() == "daily"
+        self.schedule_time_label.configure(
+            text_color=COLORS["text_secondary"] if is_daily else COLORS["text_muted"]
+        )
+        self.schedule_time_entry.configure(state="normal" if is_daily else "disabled")
+        self.schedule_interval_label.configure(
+            text_color=COLORS["text_secondary"] if not is_daily else COLORS["text_muted"]
+        )
+        self.schedule_interval_entry.configure(state="normal" if not is_daily else "disabled")
+
+    def _save_schedule_settings(self):
+        mode = self.scheduled_mode_var.get()
+        if mode not in ("daily", "interval"):
+            mode = "daily"
+
+        schedule_time = self.scheduled_time_var.get().strip()
+        if len(schedule_time) != 5 or schedule_time[2] != ":":
+            messagebox.showerror("Erro", "Hora inválida. Use o formato HH:MM.")
+            return
+        hh, mm = schedule_time.split(":")
+        if not (hh.isdigit() and mm.isdigit() and 0 <= int(hh) <= 23 and 0 <= int(mm) <= 59):
+            messagebox.showerror("Erro", "Hora inválida. Use horário 24h (00:00 até 23:59).")
+            return
+
+        interval_raw = self.scheduled_interval_var.get().strip()
+        if not interval_raw.isdigit() or int(interval_raw) <= 0:
+            messagebox.showerror("Erro", "Intervalo inválido. Informe minutos inteiros > 0.")
+            return
+
+        self.config_data["scheduled_mode"] = mode
+        self.config_data["scheduled_time"] = schedule_time
+        self.config_data["scheduled_interval_minutes"] = int(interval_raw)
+        self.config_data["scheduled_enabled"] = self.scheduled_enabled_var.get()
+        core.save_config(self.config_data)
+        self.log("✅ Agendamento salvo.")
+
+        if self.config_data["scheduled_enabled"]:
+            self._start_scheduler()
+        else:
+            self._stop_scheduler()
+
+    def _toggle_scheduled_enabled(self):
+        self.config_data["scheduled_enabled"] = self.scheduled_enabled_var.get()
+        core.save_config(self.config_data)
+        if self.scheduled_enabled_var.get():
+            self._start_scheduler()
+            self.log("⏰ Agendamento automático ativado.")
+        else:
+            self._stop_scheduler()
+            self.log("🛑 Agendamento automático desativado.")
+
+    def _start_scheduler(self):
+        if self.scheduler_running:
+            return
+        self.scheduler_stop_event.clear()
+        self.scheduler_running = True
+        self.scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
+        self.scheduler_thread.start()
+        self.log("⏱️ Scheduler iniciado.")
+
+    def _stop_scheduler(self):
+        if not self.scheduler_running:
+            return
+        self.scheduler_stop_event.set()
+        self.scheduler_running = False
+        self.log("⏹️ Scheduler parado.")
+
+    def _scheduler_loop(self):
+        while not self.scheduler_stop_event.wait(15):
+            if not self.config_data.get("scheduled_enabled", False):
+                continue
+            if self.scheduler_task_running:
+                continue
+
+            folders = self._get_monitored_folders()
+            if not folders:
+                continue
+
+            mode = self.config_data.get("scheduled_mode", "daily")
+            now = datetime.now()
+
+            if mode == "daily":
+                schedule_time = str(self.config_data.get("scheduled_time", "18:00"))
+                try:
+                    hh, mm = [int(x) for x in schedule_time.split(":")]
+                except (ValueError, TypeError):
+                    continue
+                if now.hour == hh and now.minute == mm:
+                    run_key = now.strftime("%Y-%m-%d") + f"-{hh:02d}:{mm:02d}"
+                    if run_key != self.scheduler_last_daily_key:
+                        self.scheduler_last_daily_key = run_key
+                        self._run_scheduled_organization("diário", folders)
+
+            elif mode == "interval":
+                interval_minutes = int(self.config_data.get("scheduled_interval_minutes", 60))
+                interval_seconds = max(60, interval_minutes * 60)
+                elapsed = time.time() - self.scheduler_last_interval_run
+                if elapsed >= interval_seconds:
+                    self.scheduler_last_interval_run = time.time()
+                    self._run_scheduled_organization(f"a cada {interval_minutes} min", folders)
+
+    def _run_scheduled_organization(self, reason: str, folders: list[str]):
+        valid_folders = [folder for folder in folders if os.path.exists(folder)]
+        if not valid_folders:
+            return
+
+        def task():
+            self.scheduler_task_running = True
+            try:
+                self.log(
+                    f"⏰ Organização agendada ({reason}) iniciada em {len(valid_folders)} pasta(s)."
+                )
+                for folder in valid_folders:
+                    core.organize_folder(
+                        folder,
+                        self.config_data,
+                        logger=self._counting_logger,
+                        progress_callback=self._set_progress,
+                        notify=self.config_data.get("notifications_enabled", False),
+                    )
+                self.log("✅ Organização agendada concluída.")
+            finally:
+                self.scheduler_task_running = False
+                self._reset_progress()
+
+        self._run_background_task(task)
+
+    # ──────────────────────────────────────
     # TOGGLE DATA
     # ──────────────────────────────────────
     def _toggle_date_mode(self):
@@ -1169,6 +1410,8 @@ class FileOrganizerApp(ctk.CTk):
     def on_close(self):
         if self.monitoring:
             self._stop_monitoring()
+        if self.scheduler_running:
+            self._stop_scheduler()
         if self.tray_icon:
             self.tray_icon.stop()
         self.destroy()

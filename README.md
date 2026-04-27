@@ -21,6 +21,7 @@ Ferramenta para organizar automaticamente arquivos de Downloads, Desktop e qualq
 | 13 | Notificações | Alertas do sistema quando um arquivo é organizado (requer `plyer`) |
 | 14 | Monitorar várias pastas | Adicione quantas pastas quiser ao monitoramento simultâneo |
 | 15 | Regras personalizadas | Regras tipo: se é `.pdf` e contém "nota" no nome → `Notas Fiscais/` |
+| 16 | Agendamento automático | Programe organização diária (HH:MM) ou por intervalo em minutos |
 
 ## Instalação
 
