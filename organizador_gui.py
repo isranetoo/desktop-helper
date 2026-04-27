@@ -8,6 +8,7 @@ sidebar de navegação e melhor experiência do usuário.
 import os
 import time
 import json
+import sys
 import threading
 from datetime import datetime
 import tkinter as tk
@@ -20,12 +21,13 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 import core
+from icon_factory import ensure_icon_assets
 from i18n import get_translator
 
 # Tenta importar pystray (opcional)
 try:
     import pystray
-    from PIL import Image, ImageDraw
+    from PIL import Image
 
     HAS_TRAY = True
 except ImportError:
@@ -58,6 +60,15 @@ COLORS = {
     "text_secondary": "#94a3b8",
     "text_muted": "#64748b",
 }
+
+ICON_ICO_PATH = os.path.join("generated", "icons", "sortify.ico")
+ICON_PNG_PATH = os.path.join("generated", "icons", "sortify.png")
+
+
+def get_resource_path(relative_path: str) -> str:
+    """Resolve caminho para arquivos locais e para bundle do PyInstaller."""
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
 
 
 # ==========================================
@@ -142,6 +153,7 @@ class FileOrganizerApp(ctk.CTk):
         self.geometry("1100x750")
         self.minsize(900, 600)
         self.configure(fg_color=COLORS["bg_dark"])
+        self._apply_window_icon()
 
         self.config_data = core.load_config()
         self.i18n = get_translator(self.config_data.get("language", "pt"))
@@ -331,6 +343,26 @@ class FileOrganizerApp(ctk.CTk):
     # ──────────────────────────────────────
     # HELPERS DE UI
     # ──────────────────────────────────────
+    def _apply_window_icon(self):
+        if getattr(sys, "_MEIPASS", None):
+            ico_path = get_resource_path(ICON_ICO_PATH)
+            png_path = get_resource_path(ICON_PNG_PATH)
+        else:
+            ico_path, png_path = ensure_icon_assets()
+
+        if os.name == "nt" and os.path.exists(ico_path):
+            try:
+                self.iconbitmap(default=ico_path)
+            except tk.TclError:
+                pass
+
+        if os.path.exists(png_path):
+            try:
+                self._app_icon_image = tk.PhotoImage(file=png_path)
+                self.iconphoto(True, self._app_icon_image)
+            except tk.TclError:
+                self._app_icon_image = None
+
     def _make_page(self, page_id: str) -> ctk.CTkScrollableFrame:
         page = ctk.CTkScrollableFrame(
             self.content,
@@ -1383,11 +1415,14 @@ class FileOrganizerApp(ctk.CTk):
             return
 
         self.withdraw()
-
-        image = Image.new("RGB", (64, 64), COLORS["accent"])
-        draw = ImageDraw.Draw(image)
-        draw.rounded_rectangle([12, 12, 52, 52], radius=8, fill="#ffffff")
-        draw.rounded_rectangle([18, 18, 46, 46], radius=4, fill=COLORS["accent"])
+        if getattr(sys, "_MEIPASS", None):
+            png_path = get_resource_path(ICON_PNG_PATH)
+        else:
+            _, png_path = ensure_icon_assets()
+        if os.path.exists(png_path):
+            image = Image.open(png_path)
+        else:
+            image = Image.new("RGB", (64, 64), COLORS["accent"])
 
         menu = pystray.Menu(
             pystray.MenuItem("Abrir", self._restore_from_tray),
