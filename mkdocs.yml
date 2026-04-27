@@ -1,0 +1,28 @@
+site_name: Sortify Docs
+site_description: Documentação do Sortify (desktop-helper)
+site_url: https://seu-usuario.github.io/desktop-helper/
+repo_url: https://github.com/seu-usuario/desktop-helper
+repo_name: seu-usuario/desktop-helper
+
+theme:
+  name: material
+  language: pt-BR
+  features:
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - Início: index.md
+  - Guia rápido: guia-rapido.md
+  - Configuração: configuracao.md
+  - Deploy no GitHub Pages: deploy-github-pages.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
