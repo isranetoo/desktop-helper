@@ -20,6 +20,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 import core
+from i18n import get_translator
 
 # Tenta importar pystray (opcional)
 try:
@@ -143,6 +144,8 @@ class FileOrganizerApp(ctk.CTk):
         self.configure(fg_color=COLORS["bg_dark"])
 
         self.config_data = core.load_config()
+        self.i18n = get_translator(self.config_data.get("language", "pt"))
+        self.tr = self.i18n.get
 
         # Estado
         self.observers: dict[str, Observer] = {}
@@ -159,7 +162,7 @@ class FileOrganizerApp(ctk.CTk):
         self.tray_icon = None
 
         # Variáveis de UI
-        self.status_text = tk.StringVar(value="Parado")
+        self.status_text = tk.StringVar(value=self.tr("status_stopped", "Parado"))
         self.progress_var = tk.DoubleVar(value=0)
         self.date_var = tk.BooleanVar(value=self.config_data.get("date_subfolder", False))
         self.scheduled_enabled_var = tk.BooleanVar(
@@ -220,7 +223,7 @@ class FileOrganizerApp(ctk.CTk):
 
         ctk.CTkLabel(
             brand,
-            text="Organizador de Arquivos",
+            text=self.tr("sidebar_subtitle", "Organizador de Arquivos"),
             font=ctk.CTkFont(size=11),
             text_color=COLORS["text_muted"],
         ).pack(anchor="w", pady=(2, 0))
@@ -231,11 +234,11 @@ class FileOrganizerApp(ctk.CTk):
 
         # Navegação
         nav_items = [
-            ("dashboard", "📊", "Dashboard"),
-            ("organize", "📁", "Organizar"),
-            ("monitor", "👁", "Monitorar"),
-            ("settings", "⚙️", "Configurações"),
-            ("logs", "📋", "Logs"),
+            ("dashboard", "📊", self.tr("nav_dashboard", "Dashboard")),
+            ("organize", "📁", self.tr("nav_organize", "Organizar")),
+            ("monitor", "👁", self.tr("nav_monitor", "Monitorar")),
+            ("settings", "⚙️", self.tr("nav_settings", "Configurações")),
+            ("logs", "📋", self.tr("nav_logs", "Logs")),
         ]
 
         for page_id, icon, label in nav_items:
@@ -267,7 +270,7 @@ class FileOrganizerApp(ctk.CTk):
 
         ctk.CTkLabel(
             status_inner,
-            text="Status",
+            text=self.tr("status_label", "Status"),
             font=ctk.CTkFont(size=10),
             text_color=COLORS["text_muted"],
         ).pack(anchor="w")
@@ -392,14 +395,14 @@ class FileOrganizerApp(ctk.CTk):
         header.pack(fill="x", padx=28, pady=(24, 6))
         ctk.CTkLabel(
             header,
-            text="Dashboard",
+            text=self.tr("dashboard_title", "Dashboard"),
             font=ctk.CTkFont(size=28, weight="bold"),
             text_color=COLORS["text_primary"],
         ).pack(side="left")
 
         ctk.CTkLabel(
             header,
-            text="Visão geral da sessão atual",
+            text=self.tr("dashboard_subtitle", "Visão geral da sessão atual"),
             font=ctk.CTkFont(size=13),
             text_color=COLORS["text_muted"],
         ).pack(side="left", padx=(14, 0), pady=(6, 0))
@@ -411,10 +414,10 @@ class FileOrganizerApp(ctk.CTk):
             cards_frame.columnconfigure(i, weight=1)
 
         counter_configs = [
-            ("Movidos", "counter_moved_lbl", COLORS["green"], "Arquivos organizados nesta sessão"),
-            ("Ignorados", "counter_ignored_lbl", COLORS["yellow"], "Arquivos ignorados por extensão/nome"),
-            ("Erros", "counter_errors_lbl", COLORS["red"], "Erros ao mover arquivos"),
-            ("Status", "status_card_lbl", COLORS["cyan"], "Estado do monitoramento"),
+            (self.tr("counter_moved", "Movidos"), "counter_moved_lbl", COLORS["green"], self.tr("tip_moved", "Arquivos organizados nesta sessão")),
+            (self.tr("counter_ignored", "Ignorados"), "counter_ignored_lbl", COLORS["yellow"], self.tr("tip_ignored", "Arquivos ignorados por extensão/nome")),
+            (self.tr("counter_errors", "Erros"), "counter_errors_lbl", COLORS["red"], self.tr("tip_errors", "Erros ao mover arquivos")),
+            (self.tr("counter_status", "Status"), "status_card_lbl", COLORS["cyan"], self.tr("tip_status", "Estado do monitoramento")),
         ]
 
         for col, (label, attr, color, tip) in enumerate(counter_configs):
@@ -456,7 +459,7 @@ class FileOrganizerApp(ctk.CTk):
             ToolTip(card, tip)
 
         # Ações rápidas
-        self._make_section_title(page, "⚡", "Ações rápidas")
+        self._make_section_title(page, "⚡", self.tr("quick_actions", "Ações rápidas"))
 
         quick_card = self._make_card(page)
         quick_card.pack(fill="x", padx=28, pady=(0, 8))
@@ -482,7 +485,7 @@ class FileOrganizerApp(ctk.CTk):
             btn.grid(row=0, column=col, sticky="ew", padx=padx)
 
         # Progresso
-        self._make_section_title(page, "📊", "Progresso")
+        self._make_section_title(page, "📊", self.tr("progress", "Progresso"))
 
         prog_card = self._make_card(page)
         prog_card.pack(fill="x", padx=28, pady=(0, 8))
@@ -503,7 +506,7 @@ class FileOrganizerApp(ctk.CTk):
 
         self.progress_label = ctk.CTkLabel(
             prog_inner,
-            text="Nenhuma tarefa em andamento",
+            text=self.tr("no_task", "Nenhuma tarefa em andamento"),
             font=ctk.CTkFont(size=11),
             text_color=COLORS["text_muted"],
         )
@@ -746,7 +749,7 @@ class FileOrganizerApp(ctk.CTk):
 
         self.schedule_mode_menu = ctk.CTkOptionMenu(
             mode_row,
-            values=["Diário", "Intervalo"],
+            values=[self.tr("schedule_daily", "Diário"), self.tr("schedule_interval", "Intervalo")],
             command=self._on_schedule_mode_change,
             width=140,
         )
@@ -795,7 +798,7 @@ class FileOrganizerApp(ctk.CTk):
             width=190,
         ).pack(side="left")
 
-        mode_label = "Diário" if self.scheduled_mode_var.get() == "daily" else "Intervalo"
+        mode_label = self.tr("schedule_daily", "Diário") if self.scheduled_mode_var.get() == "daily" else self.tr("schedule_interval", "Intervalo")
         self.schedule_mode_menu.set(mode_label)
         self._sync_schedule_controls()
 
@@ -968,7 +971,7 @@ class FileOrganizerApp(ctk.CTk):
         self.after(
             0,
             lambda: self.progress_label.configure(
-                text=f"Processando {current}/{total} arquivos...",
+                text=self.tr("processing_files", "Processando {current}/{total} arquivos...", current=current, total=total),
                 text_color=COLORS["accent"],
             ),
         )
@@ -978,7 +981,7 @@ class FileOrganizerApp(ctk.CTk):
         self.after(
             0,
             lambda: self.progress_label.configure(
-                text="Nenhuma tarefa em andamento",
+                text=self.tr("no_task", "Nenhuma tarefa em andamento"),
                 text_color=COLORS["text_muted"],
             ),
         )
@@ -1167,7 +1170,7 @@ class FileOrganizerApp(ctk.CTk):
 
         self.observers.clear()
         self.monitoring = False
-        self.status_text.set("Parado")
+        self.status_text.set(self.tr("status_stopped", "Parado"))
         self.status_dot.configure(text_color=COLORS["text_muted"])
         self.status_label.configure(text_color=COLORS["text_secondary"])
         self.btn_start.configure(state="normal")
@@ -1203,7 +1206,7 @@ class FileOrganizerApp(ctk.CTk):
     # AGENDAMENTO
     # ──────────────────────────────────────
     def _on_schedule_mode_change(self, selected: str):
-        mode = "daily" if selected == "Diário" else "interval"
+        mode = "daily" if selected == self.tr("schedule_daily", "Diário") else "interval"
         self.scheduled_mode_var.set(mode)
         self._sync_schedule_controls()
 
