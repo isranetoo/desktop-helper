@@ -45,6 +45,17 @@ python organizador_gui.py
 - `plyer` — notificações do sistema
 - `pystray` + `Pillow` — minimizar para bandeja do sistema
 
+### Dependências de desenvolvimento
+
+- `pytest` — suíte de testes automatizados (`requirements-dev.txt`)
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Gerar executável (.exe)
 
 ```bash

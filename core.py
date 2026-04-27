@@ -18,6 +18,7 @@ import time
 import shutil
 import hashlib
 import logging
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
@@ -67,6 +68,131 @@ DEFAULT_CONFIG = {
     "minimize_to_tray": False,
 }
 
+ALLOWED_ORGANIZE_MODES = {"extension", "date"}
+SKIP_DUPLICATE_DIRS = {"Duplicados", "logs", "__pycache__", ".git"}
+
+
+def _normalize_extension(value: str) -> str:
+    ext = str(value).strip().lower()
+    if not ext:
+        return ""
+    if not ext.startswith("."):
+        ext = f".{ext}"
+    return ext
+
+
+def _coerce_extensions(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    output = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        ext = _normalize_extension(item)
+        if ext:
+            output.append(ext)
+    return sorted(set(output))
+
+
+def _coerce_string_list(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if isinstance(item, str) and str(item).strip()]
+
+
+def validate_config(config: dict, logger: Optional[logging.Logger] = None) -> dict:
+    """Valida e normaliza a estrutura de configuração."""
+    if not isinstance(config, dict):
+        if logger:
+            logger.warning("Config inválida: esperado dict; usando padrão.")
+        return deepcopy(DEFAULT_CONFIG)
+
+    validated = deepcopy(DEFAULT_CONFIG)
+
+    raw_categories = config.get("categories")
+    if isinstance(raw_categories, dict):
+        normalized_categories = {}
+        for folder_name, extensions in raw_categories.items():
+            if not isinstance(folder_name, str) or not folder_name.strip():
+                continue
+            ext_list = _coerce_extensions(extensions)
+            if ext_list:
+                normalized_categories[folder_name.strip()] = ext_list
+        if normalized_categories:
+            validated["categories"] = normalized_categories
+        elif logger:
+            logger.warning("Config inválida: categories sem extensões válidas; mantendo padrão.")
+    elif logger and "categories" in config:
+        logger.warning("Config inválida: categories deve ser dict; mantendo padrão.")
+
+    ignored_ext = _coerce_extensions(config.get("ignored_extensions"))
+    if ignored_ext:
+        validated["ignored_extensions"] = ignored_ext
+
+    ignored_names = _coerce_string_list(config.get("ignored_names"))
+    if ignored_names:
+        validated["ignored_names"] = ignored_names
+
+    monitored_folders = _coerce_string_list(config.get("monitored_folders"))
+    validated["monitored_folders"] = monitored_folders
+
+    custom_rules = []
+    if isinstance(config.get("custom_rules"), list):
+        for rule in config["custom_rules"]:
+            if not isinstance(rule, dict):
+                continue
+            destination = rule.get("destination", "Outros")
+            conditions = rule.get("conditions", {})
+            if not isinstance(conditions, dict):
+                continue
+
+            normalized_conditions = {}
+            if "extension" in conditions:
+                ext_value = conditions["extension"]
+                if isinstance(ext_value, list):
+                    ext_list = _coerce_extensions(ext_value)
+                    if ext_list:
+                        normalized_conditions["extension"] = ext_list
+                elif isinstance(ext_value, str):
+                    ext = _normalize_extension(ext_value)
+                    if ext:
+                        normalized_conditions["extension"] = ext
+            if "name_contains" in conditions and isinstance(conditions["name_contains"], str):
+                value = conditions["name_contains"].strip()
+                if value:
+                    normalized_conditions["name_contains"] = value
+            if "name_starts_with" in conditions and isinstance(conditions["name_starts_with"], str):
+                value = conditions["name_starts_with"].strip()
+                if value:
+                    normalized_conditions["name_starts_with"] = value
+
+            if not normalized_conditions:
+                continue
+
+            custom_rules.append(
+                {
+                    "name": str(rule.get("name", "Regra")).strip() or "Regra",
+                    "destination": str(destination).strip() or "Outros",
+                    "conditions": normalized_conditions,
+                }
+            )
+    validated["custom_rules"] = custom_rules
+
+    organize_mode = str(config.get("organize_mode", validated["organize_mode"])).strip().lower()
+    if organize_mode in ALLOWED_ORGANIZE_MODES:
+        validated["organize_mode"] = organize_mode
+    elif logger:
+        logger.warning("Config inválida: organize_mode fora do permitido; mantendo padrão.")
+
+    for bool_key in ("date_subfolder", "notifications_enabled", "minimize_to_tray"):
+        raw_value = config.get(bool_key, validated[bool_key])
+        if isinstance(raw_value, bool):
+            validated[bool_key] = raw_value
+        elif logger and bool_key in config:
+            logger.warning(f"Config inválida: {bool_key} deve ser booleano; mantendo padrão.")
+
+    return validated
+
 
 def load_config() -> dict:
     """Carrega config.json ou cria com valores padrão."""
@@ -74,18 +200,20 @@ def load_config() -> dict:
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            # Mescla com defaults para garantir que chaves novas existam
-            for key, value in DEFAULT_CONFIG.items():
-                cfg.setdefault(key, value)
-            return cfg
-        except (json.JSONDecodeError, Exception):
-            pass
-    save_config(DEFAULT_CONFIG)
-    return dict(DEFAULT_CONFIG)
+            validated = validate_config(cfg, logger=file_logger)
+            return validated
+        except json.JSONDecodeError as e:
+            file_logger.error(f"Config JSON inválido em {CONFIG_PATH}: {e}")
+        except Exception:
+            file_logger.exception(f"Erro ao carregar configuração de {CONFIG_PATH}")
+    fallback = deepcopy(DEFAULT_CONFIG)
+    save_config(fallback)
+    return fallback
 
 
 def save_config(config: dict) -> None:
     """Salva config.json."""
+    config = validate_config(config, logger=file_logger)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
@@ -130,9 +258,9 @@ def send_notification(title: str, message: str) -> None:
             timeout=5,
         )
     except ImportError:
-        pass
+        file_logger.debug("plyer não instalado; notificação ignorada.")
     except Exception:
-        pass
+        file_logger.exception("Falha ao enviar notificação do sistema.")
 
 
 # ==========================================
@@ -207,12 +335,12 @@ def should_ignore(filename: str, config: dict) -> bool:
     _, ext = os.path.splitext(filename.lower())
 
     ignored_exts = config.get("ignored_extensions", [])
-    ignored_names = config.get("ignored_names", [])
+    ignored_names = {name.lower() for name in config.get("ignored_names", []) if isinstance(name, str)}
     temp_suffixes = (".crdownload", ".tmp", ".part", ".download")
 
     if filename.startswith("~"):
         return True
-    if filename in ignored_names:
+    if filename.lower() in ignored_names:
         return True
     if ext in ignored_exts:
         return True
@@ -464,6 +592,7 @@ def load_undo_history() -> Optional[dict]:
         with open(UNDO_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
+        file_logger.exception(f"Erro ao carregar histórico de undo em {UNDO_PATH}")
         return None
 
 
@@ -554,7 +683,7 @@ def _cleanup_empty_dirs(actions: list[dict]) -> None:
             if os.path.isdir(d) and not os.listdir(d):
                 os.rmdir(d)
         except Exception:
-            pass
+            file_logger.debug(f"Não foi possível limpar pasta vazia: {d}")
 
 
 # ==========================================
@@ -581,7 +710,8 @@ def find_duplicates(
 
     # Coleta todos os arquivos recursivamente
     all_files = []
-    for root, _, files in os.walk(folder_path):
+    for root, dirs, files in os.walk(folder_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DUPLICATE_DIRS]
         for f in files:
             fp = os.path.join(root, f)
             if os.path.isfile(fp) and not should_ignore(f, config):
@@ -599,6 +729,7 @@ def find_duplicates(
         try:
             h = file_hash(fp)
         except Exception:
+            file_logger.exception(f"Erro ao calcular hash de arquivo: {fp}")
             continue
 
         if h in hash_map:
