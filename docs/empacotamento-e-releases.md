@@ -29,6 +29,8 @@ O projeto agora possui um script unificado em Python e atalhos por plataforma:
 python scripts/build.py
 ```
 
+Esse modo é o mais seguro para uso local: ele detecta o SO atual e usa apenas o empacotador compatível com a máquina em execução.
+
 ### Build explícito por alvo
 
 ```bash
@@ -36,6 +38,14 @@ python scripts/build.py --target windows
 python scripts/build.py --target macos
 python scripts/build.py --target linux
 ```
+
+Importante: esses alvos não fazem cross-compilation. Cada target precisa ser executado no SO correspondente:
+
+- `--target windows` em Windows
+- `--target macos` em macOS
+- `--target linux` em Linux
+
+Se você tentar gerar `macos` em Windows, por exemplo, o script agora encerra cedo com uma mensagem explicando a incompatibilidade do host.
 
 ## Convenção de nomes dos assets
 

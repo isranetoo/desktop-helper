@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "timestamp": "2026-04-27T22:17:26.436743",
+      "actions": [
+        {
+          "from": "C:\\Users\\Israel Neto\\AppData\\Local\\Temp\\pytest-of-Israel Neto\\pytest-0\\test_find_duplicates_moves_onl0\\workspace\\b.txt",
+          "to": "C:\\Users\\Israel Neto\\AppData\\Local\\Temp\\pytest-of-Israel Neto\\pytest-0\\test_find_duplicates_moves_onl0\\workspace\\Duplicados\\b.txt"
+        }
+      ]
+    }
+  ]
+}
