@@ -75,12 +75,26 @@ Após publicar, teste:
 
 Se abrir download, os botões da landing estão corretos.
 
-## Sugestão (opcional): automação com GitHub Actions
+## Automação com GitHub Actions (já configurada)
 
-Você pode criar workflow de release para:
+O repositório possui o workflow `.github/workflows/release.yml` com este fluxo:
 
-- build em matriz (`windows-latest`, `macos-latest`, `ubuntu-latest`);
-- upload automático dos artefatos;
-- publicação automática ao criar tag `v*`.
+- dispara em `push` de tags no padrão `v*` (ex.: `v1.2.0`);
+- executa build em matriz (`windows-latest`, `macos-latest`, `ubuntu-latest`);
+- publica os três assets padronizados em **Releases**;
+- gera notas automáticas de release.
 
-Isso reduz trabalho manual e evita divergência de nomes dos arquivos.
+### Assets gerados automaticamente
+
+- `sortify-windows.exe`
+- `Sortify-macos.zip`
+- `sortify-linux.AppImage`
+
+### Como soltar uma nova versão (recomendado)
+
+```bash
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin v1.2.0
+```
+
+Depois do push da tag, o GitHub Actions cria/atualiza o release e faz upload dos arquivos.
