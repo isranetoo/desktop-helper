@@ -1,9 +1,9 @@
-const RELEASE_BASE = 'https://github.com//isranetoo/desktop-helper/releases/download/v1.0.0/'
+const RELEASE_BASE = 'https://github.com/isranetoo/desktop-helper/releases/download/v1.0.0/'
 
 const platforms = [
   {
     name: 'Windows',
-    href: `${RELEASE_BASE}/sortify-windows.exe`,
+    href: `${RELEASE_BASE}sortify-windows.exe`,
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
         <path d="M2 3.5l9.3-1.3V11H2V3.5zm10.7-1.5L22 0v11h-9.3V2zM2 12.9h9.3v8.8L2 20.4v-7.5zm10.7 0H22v11l-9.3-1.3v-9.7z" />
@@ -12,7 +12,7 @@ const platforms = [
   },
   {
     name: 'macOS',
-    href: `${RELEASE_BASE}/Sortify-macos.zip`,
+    href: `${RELEASE_BASE}Sortify-macos.zip`,
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
         <path d="M16.6 12.8c0-2.6 2.1-3.9 2.2-4-.1-.2-1.3-1.9-3.4-1.9-1.4 0-2.7.8-3.4.8-.7 0-1.7-.8-2.9-.7-1.5 0-2.9.9-3.7 2.2-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .8c1.2 0 2-.1 3.5-2.4.5-.8.8-1.5 1-2-.1-.1-3.4-1.3-3.4-4.6zm-2-7.1c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z" />
@@ -21,7 +21,7 @@ const platforms = [
   },
   {
     name: 'Linux',
-    href: `${RELEASE_BASE}/sortify-linux.AppImage`,
+    href: `${RELEASE_BASE}sortify-linux.AppImage`,
     icon: (
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">
         <path d="M12 2c-2.1 0-3.6 2.1-3.6 4.6 0 1.4.5 2.8 1.3 3.8-.9.7-2.2 1.8-2.2 3.8 0 1.2.5 2.3 1.2 3.2-.5.7-.7 1.4-.7 2.3 0 1.4 1 2.3 2.3 2.3.8 0 1.6-.4 2-.9.4.5 1.2.9 2 .9 1.4 0 2.3-1 2.3-2.3 0-.9-.3-1.7-.7-2.3.7-.9 1.2-2 1.2-3.2 0-2-1.3-3.1-2.2-3.8.8-1 1.3-2.4 1.3-3.8C15.6 4.1 14.1 2 12 2zm-1.2 4.5c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9zm2.4 0c.5 0 .9.4.9.9s-.4.9-.9.9-.9-.4-.9-.9.4-.9.9-.9z" />
