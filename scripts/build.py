@@ -23,6 +23,13 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 
 
+TARGET_HOSTS = {
+    "windows": "Windows",
+    "macos": "Darwin",
+    "linux": "Linux",
+}
+
+
 def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     print("[build]", " ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT, env=env)
@@ -32,13 +39,30 @@ def install_base_deps() -> None:
     run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 
+def validate_target_host(target: str) -> None:
+    current_host = platform.system()
+    expected_host = TARGET_HOSTS[target]
+    if current_host == expected_host:
+        return
+
+    raise SystemExit(
+        "[build] O alvo '{}' precisa ser gerado em '{}'. "
+        "Host atual: '{}'. Use a máquina/runner correspondente ou o workflow "
+        "de release em .github/workflows/release.yml.".format(
+            target, expected_host, current_host
+        )
+    )
+
+
 def build_windows() -> None:
     print("[build] Empacotando para Windows (PyInstaller)...")
     run([sys.executable, "-m", "pip", "install", "pyinstaller"])
     sep = ";"
     run(
         [
-            "pyinstaller",
+            sys.executable,
+            "-m",
+            "PyInstaller",
             "--onefile",
             "--windowed",
             "--name",
@@ -95,7 +119,9 @@ def build_linux() -> None:
     run([sys.executable, "-m", "pip", "install", "pyinstaller"])
     run(
         [
-            "pyinstaller",
+            sys.executable,
+            "-m",
+            "PyInstaller",
             "--onefile",
             "--windowed",
             "--name",
@@ -167,6 +193,7 @@ def main() -> None:
     target = detect_target() if args.target == "auto" else args.target
     print(f"[build] Plataforma alvo: {target}")
 
+    validate_target_host(target)
     install_base_deps()
 
     if target == "windows":

@@ -1,4 +1,4 @@
-const RELEASE_BASE = 'https://github.com/isranetoo/desktop-helper/releases/latest/download'
+const RELEASE_BASE = 'https://github.com//isranetoo/desktop-helper/releases/download/v1.0.0/'
 
 const platforms = [
   {

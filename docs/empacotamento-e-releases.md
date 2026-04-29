@@ -29,6 +29,8 @@ O projeto agora possui um script unificado em Python e atalhos por plataforma:
 python scripts/build.py
 ```
 
+Esse modo é o mais seguro para uso local: ele detecta o SO atual e usa apenas o empacotador compatível com a máquina em execução.
+
 ### Build explícito por alvo
 
 ```bash
@@ -36,6 +38,14 @@ python scripts/build.py --target windows
 python scripts/build.py --target macos
 python scripts/build.py --target linux
 ```
+
+Importante: esses alvos não fazem cross-compilation. Cada target precisa ser executado no SO correspondente:
+
+- `--target windows` em Windows
+- `--target macos` em macOS
+- `--target linux` em Linux
+
+Se você tentar gerar `macos` em Windows, por exemplo, o script agora encerra cedo com uma mensagem explicando a incompatibilidade do host.
 
 ## Convenção de nomes dos assets
 
@@ -75,12 +85,26 @@ Após publicar, teste:
 
 Se abrir download, os botões da landing estão corretos.
 
-## Sugestão (opcional): automação com GitHub Actions
+## Automação com GitHub Actions (já configurada)
 
-Você pode criar workflow de release para:
+O repositório possui o workflow `.github/workflows/release.yml` com este fluxo:
 
-- build em matriz (`windows-latest`, `macos-latest`, `ubuntu-latest`);
-- upload automático dos artefatos;
-- publicação automática ao criar tag `v*`.
+- dispara em `push` de tags no padrão `v*` (ex.: `v1.2.0`);
+- executa build em matriz (`windows-latest`, `macos-latest`, `ubuntu-latest`);
+- publica os três assets padronizados em **Releases**;
+- gera notas automáticas de release.
 
-Isso reduz trabalho manual e evita divergência de nomes dos arquivos.
+### Assets gerados automaticamente
+
+- `sortify-windows.exe`
+- `Sortify-macos.zip`
+- `sortify-linux.AppImage`
+
+### Como soltar uma nova versão (recomendado)
+
+```bash
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin v1.2.0
+```
+
+Depois do push da tag, o GitHub Actions cria/atualiza o release e faz upload dos arquivos.
