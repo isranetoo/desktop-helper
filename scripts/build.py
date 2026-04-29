@@ -21,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
+ICO_HEADER = b"\x00\x00\x01\x00"
+PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 
 
 TARGET_HOSTS = {
@@ -37,6 +39,35 @@ def run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
 
 def install_base_deps() -> None:
     run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+
+
+def has_file_signature(path: Path, signature: bytes) -> bool:
+    if not path.exists() or not path.is_file():
+        return False
+
+    with path.open("rb") as file_obj:
+        return file_obj.read(len(signature)) == signature
+
+
+def resolve_windows_icon() -> str:
+    ico_icon = ROOT / "icons" / "sortify.ico"
+    png_icon = ROOT / "icons" / "sortify.png"
+
+    if has_file_signature(ico_icon, ICO_HEADER):
+        return "icons/sortify.ico"
+
+    if has_file_signature(png_icon, PNG_HEADER):
+        if ico_icon.exists():
+            print(
+                "[build] icons/sortify.ico n\u00e3o \u00e9 um arquivo ICO v\u00e1lido. "
+                "Usando icons/sortify.png com convers\u00e3o via Pillow."
+            )
+        return "icons/sortify.png"
+
+    raise FileNotFoundError(
+        "[build] Nenhum \u00edcone v\u00e1lido encontrado em icons/sortify.ico "
+        "ou icons/sortify.png."
+    )
 
 
 def validate_target_host(target: str) -> None:
@@ -56,7 +87,8 @@ def validate_target_host(target: str) -> None:
 
 def build_windows() -> None:
     print("[build] Empacotando para Windows (PyInstaller)...")
-    run([sys.executable, "-m", "pip", "install", "pyinstaller"])
+    icon_path = resolve_windows_icon()
+    run([sys.executable, "-m", "pip", "install", "pyinstaller", "Pillow"])
     sep = ";"
     run(
         [
@@ -68,7 +100,7 @@ def build_windows() -> None:
             "--name",
             "sortify-windows",
             "--icon",
-            "icons/sortify.ico",
+            icon_path,
             "--add-data",
             f"config.json{sep}.",
             "--add-data",
