@@ -67,8 +67,12 @@ def build_windows() -> None:
             "--windowed",
             "--name",
             "sortify-windows",
+            "--icon",
+            "icons/sortify.ico",
             "--add-data",
             f"config.json{sep}.",
+            "--add-data",
+            f"icons{sep}icons",
             "organizador_gui.py",
         ]
     )
@@ -126,8 +130,12 @@ def build_linux() -> None:
             "--windowed",
             "--name",
             "sortify-linux",
+            "--icon",
+            "icons/sortify.png",
             "--add-data",
             "config.json:.",
+            "--add-data",
+            "icons:icons",
             "organizador_gui.py",
         ]
     )
